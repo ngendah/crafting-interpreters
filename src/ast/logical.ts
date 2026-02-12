@@ -1,6 +1,6 @@
-import { Expr, Token, Visitor } from '../common'
+import { Expr, Stmt, Token, Visitor } from '../common'
 
-export class Binary implements Expr {
+export class Logical implements Stmt {
   constructor(public readonly left:Expr, public readonly operator:Token, public readonly right:Expr) { }
 
   accept<T>(visitor: Visitor<T>): T {

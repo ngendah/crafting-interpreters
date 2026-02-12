@@ -1,8 +1,5 @@
-import Binary from "./ast/binary";
-import { Expr, Visitor } from "./ast/base";
-import Grouping from "./ast/grouping";
-import Literal from "./ast/literal";
-import Unary from "./ast/unary";
+import { Binary, Grouping, Literal, Unary } from "./ast";
+import { Expr, Visitor } from "./common";
 
 export class AstPrinter implements Visitor<string> {
   visit(value: Expr): string {

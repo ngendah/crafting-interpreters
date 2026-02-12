@@ -1,7 +1,7 @@
-import { Expr, Visitor } from "./base"
+import { Expr, Value, Visitor } from '../common'
 
-export default class Literal implements Expr {
-  constructor(public readonly value:string|number|boolean|null) { }
+export class Literal implements Expr {
+  constructor(public readonly value:Value) { }
 
   accept<T>(visitor: Visitor<T>): T {
     return visitor.visit(this);

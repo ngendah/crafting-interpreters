@@ -1,8 +1,5 @@
 import { AstPrinter } from "./ast-printer";
-import Binary from "./ast/binary";
-import Grouping from "./ast/grouping";
-import Literal from "./ast/literal";
-import Unary from "./ast/unary";
+import { Binary, Grouping, Literal, Unary } from "./ast";
 import { Token, TokenType } from "./common";
 
 describe("AstPrinter", () => {

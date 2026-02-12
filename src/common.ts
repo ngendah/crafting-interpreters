@@ -37,6 +37,8 @@ export enum TokenType {
   TRUE = "true",
   VAR = "var",
   WHILE = "while",
+  BREAK = "break",
+  CONTINUE = "continue",
   EOF = "eof",
 }
 
@@ -57,10 +59,14 @@ export const keywords: Record<string, TokenType> = {
   true: TokenType.TRUE,
   var: TokenType.VAR,
   while: TokenType.WHILE,
+  break: TokenType.BREAK,
+  continue: TokenType.CONTINUE,
 };
 
+export interface CallableFn {}
 export type Literal = number | string | boolean | null;
-export type Value = string | number | boolean | null;
+export type Value = string | number | boolean | CallableFn | null;
+export type FunctionKind = "function" | "lambda";
 
 export class Token {
   constructor(
@@ -82,9 +88,17 @@ export class ParseError {}
 
 export class RuntimeError {
   constructor(
-    public readonly name: Token,
+    public readonly name: Token | string,
     public readonly message: string,
   ) {}
+}
+
+export class ThrowableReturn {
+  constructor(public readonly value: unknown) {}
+
+  get<T>() {
+    return this.value as T;
+  }
 }
 
 export const isDigit = (char: string): boolean => char >= "0" && char <= "9";
@@ -92,3 +106,15 @@ export const isAlpha = (char: string): boolean =>
   (char >= "a" && char <= "z") || (char >= "A" && char <= "Z") || char == "_";
 export const isAlphaNumeric = (char: string): boolean =>
   isDigit(char) || isAlpha(char);
+
+export interface Expr {
+  accept<T>(visitor: Visitor<T>): T;
+}
+
+export interface Stmt {
+  accept<T>(visitor: Visitor<T>): T;
+}
+
+export interface Visitor<T> {
+  visit(value: Expr | Stmt): T;
+}

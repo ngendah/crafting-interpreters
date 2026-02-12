@@ -1,6 +1,6 @@
-import { Expr, Visitor } from "./base"
+import { Expr, Visitor } from '../common'
 
-export default class Grouping implements Expr {
+export class Grouping implements Expr {
   constructor(public readonly expression:Expr) { }
 
   accept<T>(visitor: Visitor<T>): T {

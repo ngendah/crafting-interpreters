@@ -1,17 +1,17 @@
 {
-  "name": "crafting-interpreter",
+  "name": "crafting-interpreters (typescript)",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
+    "build-ast": "npx ts-node src/tlox.ts && pnpm lint ./src/ast",
     "format": "npx prettier . --write",
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "ngendah@pm.me",
+  "license": "MIT",
   "packageManager": "pnpm@10.24.0",
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,5 +1,5 @@
 import CallableFunction from "./callable-function";
-import Lox from "./lox";
+import { Lox, LoxResolver, LoxWithResolver } from "./lox";
 import { Parser } from "./parser";
 import { Scanner } from "./scanner";
 
@@ -343,6 +343,22 @@ fun thrice(fn){
 thrice(fun (a) {
   print a;
 });
+ `);
+    const tokens = scanner.scan();
+    const parser = new Parser(tokens);
+    const stmts = parser.parse();
+    const lox = new Lox(printer);
+    lox.interpret(stmts);
+    expect(buffer).toEqual(["1", "2", "3"]);
+  });
+
+  it("executes for loop", () => {
+    const buffer: any[] = [];
+    const printer = (...args: any) => buffer.push(...args);
+    const scanner = new Scanner(`
+for (var i = 1; i <= 3; i = i + 1) {
+  print i;
+}
  `);
     const tokens = scanner.scan();
     const parser = new Parser(tokens);

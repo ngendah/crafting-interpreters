@@ -6,7 +6,7 @@ export default class Environment<T> {
   constructor(public readonly enclosing?: Environment<T>) {}
 
   define(name: Token, value: T): void {
-    this.values.set(name.lexeme!, value);
+    this.values.set(name.toString(), value);
   }
 
   get(name: Token | string): T {
@@ -24,8 +24,8 @@ export default class Environment<T> {
   }
 
   private getT(name: Token) {
-    if (name.lexeme && this.values.has(name.lexeme)) {
-      return this.values.get(name.lexeme) as T;
+    if (this.values.has(name.toString())) {
+      return this.values.get(name.toString()) as T;
     }
     if (this.enclosing) {
       return this.enclosing.get(name);
@@ -34,8 +34,9 @@ export default class Environment<T> {
   }
 
   assign(name: Token, value: T): void {
+    // TODO: with scopes in-place; should assign only set to the current environment?
     if (name.lexeme && this.values.has(name.lexeme)) {
-      this.values.set(name.lexeme, value);
+      this.values.set(name.toString(), value);
       return;
     }
     if (this.enclosing) {
@@ -43,5 +44,21 @@ export default class Environment<T> {
       return;
     }
     throw new RuntimeError(name, `Undefined variable '${name.lexeme}'.`);
+  }
+
+  ancestor(distance: number): Environment<T> | undefined {
+    let env: Environment<T> | undefined = this as Environment<T>;
+    for (let index = 0; index < distance; index = index + 1) {
+      env = env?.enclosing;
+    }
+    return env;
+  }
+
+  at(distance: number, name: Token): T | undefined {
+    return this.ancestor(distance)?.values.get(name.toString());
+  }
+
+  assignAt(distance: number, name: Token, value: T): void {
+    this.ancestor(distance)?.assign(name, value);
   }
 }

@@ -1,4 +1,4 @@
-export enum TokenType {
+export const enum TokenType {
   LEFT_PAREN = "left-paren",
   RIGHT_PAREN = "right-paren",
   LEFT_BRACE = "left-brace",
@@ -68,6 +68,12 @@ export type Literal = number | string | boolean | null;
 export type Value = string | number | boolean | CallableFn | null;
 export type FunctionKind = "function" | "lambda";
 
+export function isTruthy<T>(value: unknown): value is T {
+  if (typeof value == "boolean") return value;
+  if (typeof value == "undefined") return false;
+  return value != null;
+}
+
 export class Token {
   constructor(
     public readonly type: TokenType,
@@ -75,6 +81,10 @@ export class Token {
     public readonly lexeme?: string,
     public readonly literal?: Literal,
   ) {}
+
+  toString() {
+    return `${this.lexeme}`;
+  }
 }
 
 export class Error {
@@ -98,6 +108,40 @@ export class ThrowableReturn {
 
   get<T>() {
     return this.value as T;
+  }
+}
+
+export class Stack<T> {
+  protected items: T[] = [];
+  constructor() {}
+
+  get peek(): T | undefined {
+    if (this.isEmpty) return;
+    return this.items.at(this.items.length - 1);
+  }
+
+  get isEmpty(): boolean {
+    return this.items.length == 0;
+  }
+
+  get isNotEmpty(): boolean {
+    return !this.isEmpty;
+  }
+
+  push(item: T) {
+    this.items.push(item);
+  }
+
+  pop(): T | undefined {
+    return this.items.pop();
+  }
+
+  get length(): number {
+    return this.items.length;
+  }
+
+  at(index: number): T | undefined {
+    return this.items.at(index);
   }
 }
 

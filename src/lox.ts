@@ -3,20 +3,25 @@ import {
   Binary,
   Block,
   Call,
+  Class,
   Expression,
   Function,
+  Get,
   Grouping,
   If,
   Literal,
   Logical,
   Print,
   Return,
+  Set,
+  This,
   Unary,
   Var,
   Variable,
   While,
 } from "./ast";
 import {
+  ClassKind,
   Expr,
   FunctionKind,
   isTruthy,
@@ -33,6 +38,8 @@ import { Interpreter } from "./interpreter";
 import { Callable } from "./callable";
 import CallableFunction from "./callable-function";
 import { Resolver } from "./resolver";
+import CallableClass from "./callable-class";
+import { ClassInstance } from "./class-instance";
 
 class Clock extends Callable<Value> {
   constructor() {
@@ -251,7 +258,7 @@ export class Lox extends Interpreter<Value> {
     const args: (Value | Expr)[] = stmt.args.map((arg) =>
       arg instanceof Function ? arg : this.evaluate(arg),
     );
-    if (callee instanceof CallableFunction) {
+    if (callee instanceof Callable) {
       return callee.call(this, args);
     }
     throw new RuntimeError(stmt.paren, "Can only call functions and classes.");
@@ -263,21 +270,63 @@ export class Lox extends Interpreter<Value> {
     throw new ThrowableReturn(value);
   }
 
+  evaluateClass(stmt: Class): Value {
+    const methods = new Map<string, CallableFunction<Value>>();
+    for (const method of stmt.methods) {
+      const func = new CallableFunction(method, this.environment);
+      methods.set(method.name.toString(), func);
+    }
+    this.globals.define(stmt.name, new CallableClass(stmt.name, methods));
+    return this.nil();
+  }
+
+  evaluateGet(expr: Get): Value {
+    const object = this.evaluate(expr.object);
+    if (object instanceof ClassInstance) {
+      return object.get(expr.name);
+    }
+    throw new RuntimeError(expr.name, "Only class instance have properties.");
+  }
+
+  evaluateSet(expr: Set): Value {
+    const object = this.evaluate(expr.object);
+    if (object instanceof ClassInstance) {
+      const value = this.evaluate(expr.value);
+      object.set(expr.name, value);
+      return value;
+    }
+    throw new RuntimeError(expr.name, "Only class instance have fields.");
+  }
+
+  evaluateThis(expr: This): Value {
+    throw new RuntimeError(
+      "",
+      `Lox.evaluateThis is not implemented, use instead 'LoxWithResolver'.`,
+    );
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   resolve(expr: Expr, depth: number): void {
-    throw new RuntimeError("", `Not implemented, use 'LoxWithResolver'.`);
+    throw new RuntimeError(
+      "",
+      `Lox.resolve not implemented, use instead 'LoxWithResolver'.`,
+    );
   }
 }
 
 export class LoxResolver extends Resolver<Value> {
   protected scopes = new Stack<Map<string, boolean>>();
   protected currentFunction: FunctionKind | undefined;
+  protected currentFunctionIsClsInitializer = false;
+  protected currentCls: ClassKind | undefined;
   constructor(protected readonly interpreter: Interpreter<Value>) {
     super(interpreter);
   }
 
-  beginScope() {
-    this.scopes.push(new Map<string, boolean>());
+  beginScope(): Map<string, boolean> {
+    const scope = new Map<string, boolean>();
+    this.scopes.push(scope);
+    return scope;
   }
 
   endScope() {
@@ -336,7 +385,7 @@ export class LoxResolver extends Resolver<Value> {
     this.declare(stmt.name);
     this.define(stmt.name);
     const enclosingFunction = this.currentFunction;
-    this.currentFunction = "function";
+    this.currentFunction = stmt.kind;
     this.beginScope();
     for (const param of stmt.params) {
       this.declare(param);
@@ -366,12 +415,27 @@ export class LoxResolver extends Resolver<Value> {
   }
 
   resolveReturn(stmt: Return): void {
-    if (this.currentFunction !== "function")
+    if (
+      !this.currentFunction ||
+      ![
+        FunctionKind.FUNCTION,
+        FunctionKind.LAMBDA,
+        FunctionKind.METHOD,
+      ].includes(this.currentFunction)
+    )
       throw new RuntimeError(
         stmt.keyword,
         `Cannot return from top-level code.`,
       );
-    if (stmt.value) this.accept(stmt.value);
+    if (stmt.value) {
+      if (this.currentFunctionIsClsInitializer) {
+        throw new RuntimeError(
+          stmt.keyword,
+          `Can't return a value from a class initializer.`,
+        );
+      }
+      this.accept(stmt.value);
+    }
   }
 
   resolveWhile(stmt: While): void {
@@ -405,6 +469,43 @@ export class LoxResolver extends Resolver<Value> {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   resolveGrouping(expr: Grouping): void {}
+
+  resolveClass(stmt: Class): void {
+    const previousCls = this.currentCls;
+    this.currentCls = "class";
+    this.declare(stmt.name);
+    this.define(stmt.name);
+    const scope = this.beginScope();
+    scope.set(TokenType.THIS, true);
+    for (const method of stmt.methods) {
+      const currentFunctionIsClsInitializer =
+        this.currentFunctionIsClsInitializer;
+      this.currentFunctionIsClsInitializer = method.name.toString() == "init";
+      this.resolveFunction(method);
+      this.currentFunctionIsClsInitializer = currentFunctionIsClsInitializer;
+    }
+    this.endScope();
+    this.currentCls = previousCls;
+  }
+
+  resolveGet(expr: Get): void {
+    this.accept(expr.object);
+  }
+
+  resolveSet(expr: Set): void {
+    this.accept(expr.value);
+    this.accept(expr.object);
+  }
+
+  resolveThis(expr: This): void {
+    if (this.currentCls != "class") {
+      throw new RuntimeError(
+        expr.keyword,
+        `Can't use 'this' keyword outside of a class.`,
+      );
+    }
+    this.resolveLocal(expr, expr.keyword);
+  }
 }
 
 export class LoxWithResolver extends Lox {
@@ -443,6 +544,10 @@ export class LoxWithResolver extends Lox {
       this.globals.assign(expr.name, value);
     }
     return value;
+  }
+
+  override evaluateThis(expr: This): Value {
+    return this.environment.get(expr.keyword);
   }
 
   override resolve(expr: Expr, depth: number): void {

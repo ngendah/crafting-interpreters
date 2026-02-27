@@ -45,7 +45,7 @@ export class Scanner {
   }
 
   protected addToken(token: TokenType) {
-    this.tokens.push(new Token(token, this.line));
+    this.tokens.push(new Token(token, this.line, token));
   }
 
   protected addTokenLiteral(token: TokenType, literal: Literal) {

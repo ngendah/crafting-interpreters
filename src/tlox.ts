@@ -1,10 +1,23 @@
 import { writeFile } from "node:fs/promises";
 
+type ClsDefResults = {
+  filename: string;
+  className: string;
+  content: string;
+};
+
+type ExtraImport = {
+  className: string;
+  path: string;
+};
+
+type Options = { extraImports: ExtraImport[]; extend: boolean };
+
 export function defineClass(
   baseName: string,
   className: string,
   fieldList: string[],
-  extraImports: string[],
+  extraImports: ExtraImport[],
   extend?: boolean,
 ): string {
   const ctorParamNameType: Iterable<[string, string]> = fieldList.map((f) => {
@@ -16,6 +29,7 @@ export function defineClass(
   });
   const argNames = Array.from(ctorParamNameType).map(([name]) => name);
   const paramTypes = Array.from(ctorParamNameType).map(([, type]) => type);
+  const extraImportsClasses = extraImports.map(({ className }) => className);
   const imports = Array.from(
     new Set(
       paramTypes
@@ -26,6 +40,7 @@ export function defineClass(
         })
         .flat()
         .concat(extend ? ["Visitor"] : [baseName, "Visitor"])
+        .filter((cls) => !extraImportsClasses.includes(cls))
         .sort((a, b) => a.localeCompare(b)),
     ),
   ).join(", ");
@@ -44,7 +59,9 @@ export function defineClass(
     .join(", ");
 
   let cls = `import { ${imports} } from '../common'\n`;
-  cls += extraImports.join("\n");
+  cls += extraImports
+    .map(({ className, path }) => `import { ${className} } from '${path}'`)
+    .join("\n");
 
   if (extraImports.length > 0) cls += "\n";
 
@@ -65,14 +82,6 @@ export function defineClass(
 
   return cls;
 }
-
-type ClsDefResults = {
-  filename: string;
-  className: string;
-  content: string;
-};
-
-type Options = { extraImports: string[]; extend: boolean };
 
 export function defineClasses(
   baseName: string,
@@ -104,6 +113,7 @@ export async function defineAst() {
       "Literal : Value value",
       "Unary : Token operator, Expr right",
       "Variable: Token name",
+      "This: Token keyword",
     ]),
     ...defineClasses("Stmt", [
       "Expression: Expr expression",
@@ -116,14 +126,15 @@ export async function defineAst() {
       "Break",
       "Continue",
       "Call: Expr callee, Token paren, Expr[] args",
-      "Function: Token name, Token[] params, Stmt[] body",
+      "Function: Token name, Token[] params, Stmt[] body, FunctionKind kind",
       "Return: Token keyword, Expr value",
+      "Get: Expr object, Token name",
+      "Set: Expr object, Token name, Expr value",
     ]),
-    ...defineClasses(
-      "Function",
-      ["Lambda: Token name, Token[] params, Stmt[] body"],
-      { extraImports: ["import { Function } from './function'"], extend: true },
-    ),
+    ...defineClasses("Stmt", ["Class: Token name, Function[] methods"], {
+      extraImports: [{ className: "Function", path: "./function" }],
+      extend: false,
+    }),
   ]);
 
   defs.sort((a, b) => a.className.localeCompare(b.className));

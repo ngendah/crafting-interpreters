@@ -367,4 +367,20 @@ for (var i = 1; i <= 3; i = i + 1) {
     lox.interpret(stmts);
     expect(buffer).toEqual(["1", "2", "3"]);
   });
+
+  it("creates a class instance", () => {
+    const buffer: any[] = [];
+    const printer = (...args: any) => buffer.push(...args);
+    const scanner = new Scanner(`
+class Bagel {}
+var bagel = Bagel();
+print bagel;
+ `);
+    const tokens = scanner.scan();
+    const parser = new Parser(tokens);
+    const stmts = parser.parse();
+    const lox = new Lox(printer);
+    lox.interpret(stmts);
+    expect(buffer).toEqual(["Bagel"]);
+  });
 });

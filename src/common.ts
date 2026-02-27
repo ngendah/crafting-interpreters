@@ -63,10 +63,16 @@ export const keywords: Record<string, TokenType> = {
   continue: TokenType.CONTINUE,
 };
 
-export interface CallableFn {}
+export abstract class Instance {}
+export abstract class CallableFn {}
 export type Literal = number | string | boolean | null;
-export type Value = string | number | boolean | CallableFn | null;
-export type FunctionKind = "function" | "lambda";
+export type Value = string | number | boolean | CallableFn | Instance | null;
+export const enum FunctionKind {
+  FUNCTION = "function",
+  LAMBDA = "lambda",
+  METHOD = "method",
+}
+export type ClassKind = "class";
 
 export function isTruthy<T>(value: unknown): value is T {
   if (typeof value == "boolean") return value;

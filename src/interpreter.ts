@@ -3,14 +3,18 @@ import {
   Binary,
   Block,
   Call,
+  Class,
   Expression,
   Function,
+  Get,
   Grouping,
   If,
   Literal,
   Logical,
   Print,
   Return,
+  Set,
+  This,
   Unary,
   Var,
   Variable,
@@ -43,6 +47,10 @@ export abstract class Interpreter<T> implements Visitor<T> {
     if (value instanceof Function) return this.evaluateFunction(value);
     if (value instanceof Call) return this.evaluateCall(value);
     if (value instanceof Return) return this.evaluateReturn(value);
+    if (value instanceof Class) return this.evaluateClass(value);
+    if (value instanceof Get) return this.evaluateGet(value);
+    if (value instanceof Set) return this.evaluateSet(value);
+    if (value instanceof This) return this.evaluateThis(value);
     return this.nil();
   }
 
@@ -60,11 +68,14 @@ export abstract class Interpreter<T> implements Visitor<T> {
   abstract evaluateLogical(stmt: Logical): T;
   abstract evaluateWhile(stmt: While): T;
   abstract evaluateFunction(stmt: Function): T;
-  // FIXME: call is an expr not stmt
   abstract evaluateCall(stmt: Call): T;
   abstract evaluateReturn(stmt: Return): T;
+  abstract evaluateClass(stmt: Class): T;
+  abstract evaluateGet(expr: Get): T;
+  abstract evaluateSet(expr: Set): T;
+  abstract evaluateThis(expr: This): T;
 
-  protected evaluate(eOs: Expr | Stmt): T {
+  evaluate(eOs: Expr | Stmt): T {
     return eOs.accept(this);
   }
 

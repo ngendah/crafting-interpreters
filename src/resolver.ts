@@ -3,14 +3,18 @@ import {
   Binary,
   Block,
   Call,
+  Class,
   Expression,
   Function,
+  Get,
   Grouping,
   If,
   Literal,
   Logical,
   Print,
   Return,
+  Set,
+  This,
   Unary,
   Var,
   Variable,
@@ -39,6 +43,10 @@ export abstract class Resolver<T> implements Visitor<void> {
     if (value instanceof Function) return this.resolveFunction(value);
     if (value instanceof Call) return this.resolveCall(value);
     if (value instanceof Return) return this.resolveReturn(value);
+    if (value instanceof Class) return this.resolveClass(value);
+    if (value instanceof Get) return this.resolveGet(value);
+    if (value instanceof Set) return this.resolveSet(value);
+    if (value instanceof This) return this.resolveThis(value);
   }
 
   abstract resolveLiteral(expr: Literal): void;
@@ -55,9 +63,12 @@ export abstract class Resolver<T> implements Visitor<void> {
   abstract resolveLogical(stmt: Logical): void;
   abstract resolveWhile(stmt: While): void;
   abstract resolveFunction(stmt: Function): void;
-  // FIXME: call is an expr not a stmt
   abstract resolveCall(stmt: Call): void;
   abstract resolveReturn(stmt: Return): void;
+  abstract resolveClass(stmt: Class): void;
+  abstract resolveGet(expr: Get): void;
+  abstract resolveSet(expr: Set): void;
+  abstract resolveThis(expr: This): void;
 
   protected accept(eOs: Expr | Stmt): void {
     return eOs.accept(this);

@@ -4,16 +4,19 @@ import {
   Block,
   Break,
   Call,
+  Class,
   Continue,
   Expression,
   Function,
+  Get,
   Grouping,
   If,
-  Lambda,
   Literal,
   Logical,
   Print,
   Return,
+  Set,
+  This,
   Unary,
   Var,
   Variable,
@@ -81,6 +84,8 @@ export class Parser {
       if (expr instanceof Variable) {
         const name = expr.name;
         return new Assign(name, value);
+      } else if (expr instanceof Get) {
+        return new Set(expr.object, expr.name, value);
       }
       this.error(equals, "Invalid assignment target.");
     }
@@ -168,6 +173,12 @@ export class Parser {
     while (true) {
       if (this.match(TokenType.LEFT_PAREN)) {
         expr = this.finishCall(expr);
+      } else if (this.match(TokenType.DOT)) {
+        const name = this.consume(
+          TokenType.IDENTIFIER,
+          "Expect property name after '.'.",
+        );
+        expr = new Get(expr, name);
       } else {
         break;
       }
@@ -183,8 +194,7 @@ export class Parser {
           this.error(this.peek(), "Cant have more than 255 arguments.");
         }
         if (this.match(TokenType.FUN)) {
-          const index = args.length > 0 ? args.length - 1 : 0;
-          args.push(this.function("lambda", `${index}`));
+          args.push(this.function(FunctionKind.LAMBDA));
         } else {
           args.push(this.expression());
         }
@@ -204,6 +214,7 @@ export class Parser {
     if (this.match(TokenType.NUMBER, TokenType.STRING)) {
       return new Literal(this.previous.literal!);
     }
+    if (this.match(TokenType.THIS)) return new This(this.previous);
     if (this.match(TokenType.IDENTIFIER)) {
       return new Variable(this.previous);
     }
@@ -274,7 +285,9 @@ export class Parser {
 
   declaration(): Stmt | null {
     try {
-      if (this.match(TokenType.FUN)) return this.function("function");
+      if (this.match(TokenType.CLASS)) return this.cls();
+      if (this.match(TokenType.FUN))
+        return this.function(FunctionKind.FUNCTION);
       if (this.match(TokenType.VAR)) return this.varDeclaration();
       return this.statement();
     } catch {
@@ -283,12 +296,23 @@ export class Parser {
     }
   }
 
-  function(kind: FunctionKind, id?: string): Function {
+  cls(): Stmt {
+    const name = this.consume(TokenType.IDENTIFIER, "Expect class name.");
+    this.consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
+    const methods: Function[] = [];
+    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd) {
+      methods.push(this.function(FunctionKind.METHOD));
+    }
+    this.consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
+    return new Class(name, methods);
+  }
+
+  function(kind: FunctionKind): Function {
     let name: Token;
-    if (this.check(TokenType.IDENTIFIER)) {
-      name = this.consume(TokenType.IDENTIFIER, `Expect ${kind} name.`);
+    if (kind == FunctionKind.LAMBDA) {
+      name = new Token(TokenType.IDENTIFIER, this.current, kind);
     } else {
-      name = new Token(TokenType.IDENTIFIER, this.current, id);
+      name = this.consume(TokenType.IDENTIFIER, `Expect ${kind} name.`);
     }
     this.consume(TokenType.LEFT_PAREN, `Expect '(' before ${kind} parameters.`);
     const params: Token[] = [];
@@ -304,9 +328,7 @@ export class Parser {
     this.consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
     this.consume(TokenType.LEFT_BRACE, `Expect '{' before ${kind} body.`);
     const body = this.block();
-    return kind == "lambda"
-      ? new Lambda(name, params, body)
-      : new Function(name, params, body);
+    return new Function(name, params, body, kind);
   }
 
   varDeclaration(): Stmt {

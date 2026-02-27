@@ -114,4 +114,12 @@ describe("Parser", () => {
       });
     });
   });
+
+  it("builds up get calls", () => {
+    const scanner = new Scanner("egg.scramble(3).with(cheddar);");
+    const tokens = scanner.scan();
+    const parser = new Parser(tokens);
+    const stmts = parser.parse();
+    expect(stmts).toHaveLength(1);
+  });
 });

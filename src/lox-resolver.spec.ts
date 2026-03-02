@@ -180,4 +180,55 @@ print circle.area();
     lox.interpret(stmts);
     expect(buffer).toEqual(["50.265482464"]);
   });
+
+  it("classes inherit superclass methods", () => {
+    const buffer: any[] = [];
+    const printer = (...args: any) => buffer.push(...args);
+    const scanner = new Scanner(`
+class Doughnut {
+  cook() {
+    print "Fry until golden brown.";
+  }
+}
+
+class BostonCream < Doughnut {}
+BostonCream().cook();
+ `);
+    const tokens = scanner.scan();
+    const parser = new Parser(tokens);
+    const stmts = parser.parse();
+    const lox = new LoxWithResolver(printer);
+    lox.interpret(stmts);
+    expect(buffer).toEqual(["Fry until golden brown."]);
+  });
+
+  it("classes methods call super class methods", () => {
+    const buffer: any[] = [];
+    const printer = (...args: any) => buffer.push(...args);
+    const scanner = new Scanner(`
+class Doughnut {
+cook() {
+print "Fry until golden brown.";
+}
+}
+class BostonCream < Doughnut {
+cook() {
+super.cook();
+print "Pipe full of custard and coat with chocolate.";
+}
+}
+BostonCream().cook();
+ `);
+    const tokens = scanner.scan();
+    const parser = new Parser(tokens);
+    const stmts = parser.parse();
+    const lox = new LoxWithResolver(printer);
+    lox.interpret(stmts);
+    // FIXME: works without impl on pg 376? and pg 377?
+    // FIXME: maybe some corners are cut? revisit it later?.
+    expect(buffer).toEqual([
+      "Fry until golden brown.",
+      "Pipe full of custard and coat with chocolate."
+    ])
+  });
 });

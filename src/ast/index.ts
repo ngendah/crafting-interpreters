@@ -15,6 +15,7 @@ export * from "./logical";
 export * from "./print";
 export * from "./return";
 export * from "./set";
+export * from "./super";
 export * from "./this";
 export * from "./unary";
 export * from "./var";

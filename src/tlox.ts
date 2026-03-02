@@ -114,6 +114,7 @@ export async function defineAst() {
       "Unary : Token operator, Expr right",
       "Variable: Token name",
       "This: Token keyword",
+      "Super: Token keyword, Token method",
     ]),
     ...defineClasses("Stmt", [
       "Expression: Expr expression",
@@ -131,10 +132,17 @@ export async function defineAst() {
       "Get: Expr object, Token name",
       "Set: Expr object, Token name, Expr value",
     ]),
-    ...defineClasses("Stmt", ["Class: Token name, Function[] methods"], {
-      extraImports: [{ className: "Function", path: "./function" }],
-      extend: false,
-    }),
+    ...defineClasses(
+      "Stmt",
+      ["Class: Token name, Function[] methods, Variable superclass?"],
+      {
+        extraImports: [
+          { className: "Function", path: "./function" },
+          { className: "Variable", path: "./variable" },
+        ],
+        extend: false,
+      },
+    ),
   ]);
 
   defs.sort((a, b) => a.className.localeCompare(b.className));

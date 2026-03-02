@@ -14,6 +14,7 @@ import {
   Print,
   Return,
   Set,
+  Super,
   This,
   Unary,
   Var,
@@ -21,6 +22,7 @@ import {
   While,
 } from "./ast";
 import {
+  CallableFn,
   ClassKind,
   Expr,
   FunctionKind,
@@ -271,13 +273,35 @@ export class Lox extends Interpreter<Value> {
   }
 
   evaluateClass(stmt: Class): Value {
+    let superclass: CallableFn | undefined;
+    if (stmt.superclass) {
+      superclass = this.evaluate(stmt.superclass) ?? undefined;
+      if (!(superclass && superclass instanceof CallableClass)) {
+        throw new RuntimeError(
+          stmt.superclass.name,
+          "Superclass must be a class",
+        );
+      }
+    }
+    const clsEnvironment = new Environment(this.environment);
+    if (superclass) {
+      clsEnvironment.define(
+        new Token(TokenType.SUPER, 0, TokenType.SUPER),
+        superclass,
+      );
+    }
     const methods = new Map<string, CallableFunction<Value>>();
     for (const method of stmt.methods) {
-      const func = new CallableFunction(method, this.environment);
+      const func = new CallableFunction(method, clsEnvironment);
       methods.set(method.name.toString(), func);
     }
-    this.globals.define(stmt.name, new CallableClass(stmt.name, methods));
-    return this.nil();
+    const callableClass = new CallableClass(
+      stmt.name,
+      methods,
+      superclass as CallableClass<Value>,
+    );
+    this.globals.define(stmt.name, callableClass);
+    return callableClass;
   }
 
   evaluateGet(expr: Get): Value {
@@ -298,6 +322,15 @@ export class Lox extends Interpreter<Value> {
     throw new RuntimeError(expr.name, "Only class instance have fields.");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  evaluateSuper(expr: Super): Value {
+    throw new RuntimeError(
+      "",
+      `Lox.evaluateSuper is not implemented, use instead 'LoxWithResolver'.`,
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   evaluateThis(expr: This): Value {
     throw new RuntimeError(
       "",
@@ -415,6 +448,7 @@ export class LoxResolver extends Resolver<Value> {
   }
 
   resolveReturn(stmt: Return): void {
+    // FIXME: log errors
     if (
       !this.currentFunction ||
       ![
@@ -465,16 +499,33 @@ export class LoxResolver extends Resolver<Value> {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  resolveLiteral(expr: Literal): void {}
+  resolveLiteral(expr: Literal): void { }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  resolveGrouping(expr: Grouping): void {}
+  resolveGrouping(expr: Grouping): void { }
 
   resolveClass(stmt: Class): void {
     const previousCls = this.currentCls;
     this.currentCls = "class";
     this.declare(stmt.name);
     this.define(stmt.name);
+    if (
+      stmt.superclass &&
+      stmt.superclass.name.toString() == stmt.name.toString()
+    ) {
+      // FIXME: log error
+      throw new RuntimeError(
+        stmt.superclass.name,
+        "A class can't inherit from itself.",
+      );
+    }
+    if (stmt.superclass) {
+      this.accept(stmt.superclass);
+    }
+    if (stmt.superclass) {
+      const scope = this.beginScope();
+      scope.set(TokenType.SUPER, true);
+    }
     const scope = this.beginScope();
     scope.set(TokenType.THIS, true);
     for (const method of stmt.methods) {
@@ -485,6 +536,9 @@ export class LoxResolver extends Resolver<Value> {
       this.currentFunctionIsClsInitializer = currentFunctionIsClsInitializer;
     }
     this.endScope();
+    if (stmt.superclass) {
+      this.endScope();
+    }
     this.currentCls = previousCls;
   }
 
@@ -504,6 +558,10 @@ export class LoxResolver extends Resolver<Value> {
         `Can't use 'this' keyword outside of a class.`,
       );
     }
+    this.resolveLocal(expr, expr.keyword);
+  }
+
+  resolveSuper(expr: Super): void {
     this.resolveLocal(expr, expr.keyword);
   }
 }
@@ -544,6 +602,22 @@ export class LoxWithResolver extends Lox {
       this.globals.assign(expr.name, value);
     }
     return value;
+  }
+
+  override evaluateSuper(expr: Super): Value {
+    const distance = this.locals.get(expr);
+    if (isTruthy<number>(distance)) {
+      const superclass = this.environment.at(
+        distance,
+        expr.keyword,
+      ) as CallableClass<Value>;
+      const method = superclass.methods.get(expr.method.toString());
+      if (method) return method;
+    }
+    throw new RuntimeError(
+      expr.method,
+      `Undefined property ${expr.method.toString()}`,
+    );
   }
 
   override evaluateThis(expr: This): Value {

@@ -14,6 +14,7 @@ import {
   Print,
   Return,
   Set,
+  Super,
   This,
   Unary,
   Var,
@@ -47,6 +48,7 @@ export abstract class Resolver<T> implements Visitor<void> {
     if (value instanceof Get) return this.resolveGet(value);
     if (value instanceof Set) return this.resolveSet(value);
     if (value instanceof This) return this.resolveThis(value);
+    if (value instanceof Super) return this.resolveSuper(value);
   }
 
   abstract resolveLiteral(expr: Literal): void;
@@ -69,6 +71,7 @@ export abstract class Resolver<T> implements Visitor<void> {
   abstract resolveGet(expr: Get): void;
   abstract resolveSet(expr: Set): void;
   abstract resolveThis(expr: This): void;
+  abstract resolveSuper(expr: Super): void;
 
   protected accept(eOs: Expr | Stmt): void {
     return eOs.accept(this);

@@ -16,6 +16,7 @@ import {
   Print,
   Return,
   Set,
+  Super,
   This,
   Unary,
   Var,
@@ -214,6 +215,15 @@ export class Parser {
     if (this.match(TokenType.NUMBER, TokenType.STRING)) {
       return new Literal(this.previous.literal!);
     }
+    if (this.match(TokenType.SUPER)) {
+      const keyword = this.previous;
+      this.consume(TokenType.DOT, "Expect '.' after 'super'.");
+      const method = this.consume(
+        TokenType.IDENTIFIER,
+        "Expect superclass method name.",
+      );
+      return new Super(keyword, method);
+    }
     if (this.match(TokenType.THIS)) return new This(this.previous);
     if (this.match(TokenType.IDENTIFIER)) {
       return new Variable(this.previous);
@@ -298,13 +308,18 @@ export class Parser {
 
   cls(): Stmt {
     const name = this.consume(TokenType.IDENTIFIER, "Expect class name.");
+    let superclass: Variable | undefined;
+    if (this.match(TokenType.LESS)) {
+      this.consume(TokenType.IDENTIFIER, "Expect superclass name.");
+      superclass = new Variable(this.previous);
+    }
     this.consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
     const methods: Function[] = [];
     while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd) {
       methods.push(this.function(FunctionKind.METHOD));
     }
     this.consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
-    return new Class(name, methods);
+    return new Class(name, methods, superclass);
   }
 
   function(kind: FunctionKind): Function {

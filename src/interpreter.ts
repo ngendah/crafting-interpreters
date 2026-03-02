@@ -14,6 +14,7 @@ import {
   Print,
   Return,
   Set,
+  Super,
   This,
   Unary,
   Var,
@@ -51,6 +52,7 @@ export abstract class Interpreter<T> implements Visitor<T> {
     if (value instanceof Get) return this.evaluateGet(value);
     if (value instanceof Set) return this.evaluateSet(value);
     if (value instanceof This) return this.evaluateThis(value);
+    if (value instanceof Super) return this.evaluateSuper(value);
     return this.nil();
   }
 
@@ -74,6 +76,7 @@ export abstract class Interpreter<T> implements Visitor<T> {
   abstract evaluateGet(expr: Get): T;
   abstract evaluateSet(expr: Set): T;
   abstract evaluateThis(expr: This): T;
+  abstract evaluateSuper(expr: Super): T;
 
   evaluate(eOs: Expr | Stmt): T {
     return eOs.accept(this);

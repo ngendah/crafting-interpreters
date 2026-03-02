@@ -8,6 +8,7 @@ export default class CallableClass<T> extends Callable<T> {
   constructor(
     public readonly name: Token,
     public readonly methods: Map<string, Callable<T>>,
+    public readonly superclass: CallableClass<T> | undefined,
   ) {
     const initializer = methods.get("init");
     super(initializer instanceof CallableFunction ? initializer.arity : 0);

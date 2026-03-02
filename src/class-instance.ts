@@ -16,6 +16,11 @@ export class ClassInstance<T> extends Instance {
     const method = this.cls.methods.get(name.toString());
     // FIXME: rm 'as T'
     if (method instanceof CallableFunction) return method.bind(this) as T;
+    if (this.cls.superclass) {
+      const superclass = this.cls.superclass;
+      const method = superclass.methods.get(name.toString());
+      if (method instanceof CallableFunction) return method.bind(this) as T;
+    }
     throw new RuntimeError(name, `Undefined property ${name.toString()}.`);
   }
 

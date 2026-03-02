@@ -3,11 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "build-ast": "npx ts-node src/tlox.ts && pnpm lint ./src/ast",
+    "generate-ast": "npx ts-node src/generate-ast.ts && pnpm lint ./src/ast",
     "format": "npx prettier . --write",
     "lint": "eslint",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test": "jest"
   },
   "keywords": [],
   "author": "ngendah@pm.me",

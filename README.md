@@ -1,9 +1,9 @@
-# Crafting Interpreters (TypeScript)
+# Crafting Interpreters
 
 This is a small hobby project where I am implementing the interpreter described in  
-**Crafting Interpreters by Robert Nystrom**, using **TypeScript**.
+**Crafting Interpreters by Robert Nystrom**.
 
-The goal of this implementation is educational, to better understand language design,
-parsing, and interpreter implementation, while exploring how these concepts map
-into the TypeScript ecosystem.
+## [Tree-walker interpreter](./tree-walker-interpreter/)
+
+## [Byte-Code Virtual Machine](./byte-code-vm/)
 

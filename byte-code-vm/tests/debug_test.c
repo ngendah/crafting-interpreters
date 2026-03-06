@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "chunk.h"
 #include "debug.h"
@@ -10,4 +11,9 @@ void test_disassemble_chunk() {
   writeChunk(&chunk, OP_RETURN, 123);
   const uint8_t count = disassembleChunk(&chunk, "test chunk");
   assert(count == chunk.count);
+}
+
+int main() {
+  test_disassemble_chunk();
+  return EXIT_SUCCESS;
 }

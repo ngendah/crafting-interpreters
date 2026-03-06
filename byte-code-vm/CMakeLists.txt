@@ -6,19 +6,13 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
 
-add_subdirectory(src)
-
 include(CTest)
 if(BUILD_TESTING)
-  enable_testing()
+  add_compile_definitions(TESTING)
   add_subdirectory(tests)
-  add_custom_target(run_tests
-    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS test_run
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running tests ..."
-  )
 endif()
+
+add_subdirectory(src)
 
 find_program(CLANG_FORMAT_EXE clang-format)
 if(CLANG_FORMAT_EXE)

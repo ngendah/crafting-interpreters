@@ -18,6 +18,6 @@ cmake --build build
 
 - Running tests:
 ```
-cmake --build build --target run_tests
+cmake --build build && ctest --test-dir ./build
 ```
 ```

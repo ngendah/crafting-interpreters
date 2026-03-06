@@ -33,3 +33,10 @@ void test_free_chunk() {
   assert(chunk.capacity == 0);
   assert(chunk.code == NULL);
 }
+
+int main() {
+  test_init_chunk();
+  test_write_chunk();
+  test_free_chunk();
+  return EXIT_SUCCESS;
+}

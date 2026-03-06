@@ -2,12 +2,16 @@
 
 #include <stdint.h>
 
-typedef int Index;
-typedef int Offset;
-typedef int Line;
+typedef unsigned int Offset;
+typedef unsigned int Line;
 typedef uint8_t Byte;
 
 typedef enum {
-  OP_CONSTANT,
+  OP_CONSTANT = 0x01,
+  OP_ADD,
+  OP_SUBTRACT,
+  OP_MULTIPLY,
+  OP_DIVIDE,
+  OP_NEGATE,
   OP_RETURN,
 } OpCode;

@@ -2,11 +2,12 @@
 
 #include "common.h"
 #include "value.h"
+#include <stddef.h>
 #include <stdint.h>
 
 typedef struct {
-  int count;
-  int capacity;
+  size_t count;
+  size_t capacity;
   Byte *code; // :)
   Line *lines;
   Values constants;
@@ -15,4 +16,4 @@ typedef struct {
 void initChunk(Chunk *chunk);
 void freeChunk(Chunk *chunk);
 void writeChunk(Chunk *chunk, Byte byte, Line line);
-Index addConstant(Chunk *chunk, Value value);
+Offset addConstant(Chunk *chunk, Value value);

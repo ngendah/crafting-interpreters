@@ -29,7 +29,7 @@ void writeChunk(Chunk *chunk, Byte byte, Line line) {
   chunk->count++;
 }
 
-Index addConstant(Chunk *chunk, Value value) {
+Offset addConstant(Chunk *chunk, Value value) {
   writeValue(&chunk->constants, value);
   return chunk->constants.count - 1;
 }

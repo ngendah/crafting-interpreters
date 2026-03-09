@@ -8,7 +8,6 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include(CTest)
 if(BUILD_TESTING)
-  add_compile_definitions(TESTING)
   add_subdirectory(tests)
 endif()
 

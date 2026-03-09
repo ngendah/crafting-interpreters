@@ -1,6 +1,10 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
+
+#define __inline(type) static inline type
+#define __inline_void static inline void
 
 typedef unsigned int Offset;
 typedef unsigned int Line;

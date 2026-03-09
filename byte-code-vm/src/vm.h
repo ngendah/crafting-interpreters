@@ -1,9 +1,12 @@
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "chunk.h"
 #include "common.h"
+#include "string.h"
 #include "value.h"
-#include <stdint.h>
 
 typedef enum {
   INTERPRET_OK,
@@ -22,13 +25,9 @@ typedef struct {
   Stack stack;
 } VM;
 
-#ifdef TESTING
-VM *const initVM();
-#else
 void initVM();
-#endif // TESTING
 void freeVM();
-InterpretResult interpret(Chunk *chunk);
+InterpretResult interpret(const String source);
 
 void stackInit(Stack *stack);
 uint8_t stackPush(Stack *stack, Value value);

@@ -16,3 +16,6 @@ add_executable(test_vm vm_test.c)
 target_link_libraries(test_vm PRIVATE ByteCodeVM test_includes)
 add_test(NAME test_vm COMMAND test_vm)
 
+add_executable(test_scanner scanner_test.c)
+target_link_libraries(test_scanner PRIVATE ByteCodeVM test_includes)
+add_test(NAME test_scanner COMMAND test_scanner)

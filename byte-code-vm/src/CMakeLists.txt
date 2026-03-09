@@ -1,1 +1,1 @@
-add_library(ByteCodeVM chunk.c debug.c memory.c value.c vm.c)
+add_library(ByteCodeVM chunk.c compiler.c debug.c memory.c scanner.c string.c value.c vm.c)

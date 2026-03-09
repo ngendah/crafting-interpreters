@@ -1,15 +1,13 @@
-#include "vm.h"
-#include "common.h"
+#include <stdio.h>
 #include <stdlib.h>
+
+#include "common.h"
+#include "compiler.h"
+#include "vm.h"
 #ifdef DEBUG_TRACE_EXECUTION
 #include "debug.h"
 #endif
 #include "value.h"
-#include <stdint.h>
-#include <stdio.h>
-
-#define __inline(type) static inline type
-#define __inline_void static inline void
 
 __inline(bool) isAtEnd();
 __inline(InterpretResult) run();
@@ -23,21 +21,15 @@ __inline_void negate();
 
 VM vm;
 
-#ifdef TESTING
-VM *const initVM() {
-  stackInit(&vm.stack);
-  return &vm;
-}
-#else
+VM *const getVM() { return &vm; }
+
 void initVM() { stackInit(&vm.stack); }
-#endif /* TESTING */
 
 void freeVM() {}
 
-InterpretResult interpret(Chunk *chunk) {
-  vm.chunk = chunk;
-  vm.ip = 0;
-  return run();
+InterpretResult interpret(const String source) {
+  compile(source);
+  return INTERPRET_OK;
 }
 
 __inline(InterpretResult) run() {

@@ -1,9 +1,11 @@
 #pragma once
 
+#include <stddef.h>
+
 typedef double Value;
 
 typedef struct {
-  int capacity;
+  size_t capacity;
   int count;
   Value *values;
 } Values;

@@ -3,5 +3,5 @@
 #include "chunk.h"
 #include "common.h"
 
-Offset disassembleChunk(Chunk *chunk, const char *name);
-Offset disassambleInstruction(Chunk *chunk, Offset offset);
+offset_t debug_chunk(chunk_t *chunk, const char *name);
+offset_t debug_instruction(chunk_t *chunk, offset_t offset);

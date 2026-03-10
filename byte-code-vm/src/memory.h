@@ -1,13 +1,11 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 
-#define GROW_CAPACITY(capacity) ((capacity) < 8 ? 8 : (capacity) * 2)
+constexpr auto GROW_RATE = 2u;
+constexpr auto MIN_ARRAY_LEN = 8u;
 
-#define GROW_ARRAY(type, pointer, oldCount, newCount)                          \
-  (type *)reallocate(pointer, sizeof(type) * oldCount, sizeof(type) * newCount)
-
-#define FREE_ARRAY(type, pointer, oldCount)                                    \
-  reallocate(pointer, sizeof(type) * oldCount, 0)
-
-void *reallocate(void *pointer, size_t oldSize, size_t newSize);
+void *new (size_t size);
+void *resize(void *pointer, size_t size);
+void delete (void *pointer);

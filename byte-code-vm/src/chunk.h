@@ -8,12 +8,12 @@
 typedef struct {
   size_t count;
   size_t capacity;
-  Byte *code; // :)
-  Line *lines;
-  Values constants;
-} Chunk;
+  byte_t *code;
+  line_t *lines;
+  values_t constants;
+} chunk_t;
 
-void initChunk(Chunk *chunk);
-void freeChunk(Chunk *chunk);
-void writeChunk(Chunk *chunk, Byte byte, Line line);
-Offset addConstant(Chunk *chunk, Value value);
+void chunk_init(chunk_t *chunk);
+void chunk_free(chunk_t *chunk);
+void chunk_write(chunk_t *chunk, byte_t byte, line_t line);
+offset_t chunk_add_constant(chunk_t *chunk, value_t value);

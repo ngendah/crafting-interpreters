@@ -19,3 +19,19 @@ add_test(NAME test_vm COMMAND test_vm)
 add_executable(test_scanner scanner_test.c)
 target_link_libraries(test_scanner PRIVATE ByteCodeVM test_includes)
 add_test(NAME test_scanner COMMAND test_scanner)
+
+add_executable(test_string string_test.c)
+target_link_libraries(test_string PRIVATE ByteCodeVM test_includes)
+add_test(NAME test_string COMMAND test_string)
+
+add_executable(test_compiler compiler_test.c)
+target_link_libraries(test_compiler PRIVATE ByteCodeVM test_includes)
+add_test(NAME test_compiler COMMAND test_compiler)
+
+add_executable(test_value value_test.c)
+target_link_libraries(test_value PRIVATE ByteCodeVM test_includes)
+add_test(NAME test_value COMMAND test_value)
+
+add_executable(test_hash_table hash_table_test.c)
+target_link_libraries(test_hash_table PRIVATE ByteCodeVM test_includes)
+add_test(NAME test_hash_table COMMAND test_hash_table)

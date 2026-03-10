@@ -1,11 +1,15 @@
 #pragma once
 
-#include <stddef.h>
+#include "common.h"
 
 typedef struct {
-  const char *const str;
+  object_t object;
+  const char *str;
   size_t length;
-} String;
+} string_t;
 
-const String _(const char *str);
-const int cmp(const String a, const String b);
+const string_t _(const char *str);
+const string_t _T(const char *str, size_t length);
+
+const int string_compare(const string_t a, const string_t b);
+const double string_as_double(string_t str);

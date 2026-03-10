@@ -1,5 +1,6 @@
 #pragma once
 
+#include "chunk.h"
 #include "string.h"
 
-void compile(const String source);
+bool compiler_run(const string_t source, chunk_t *chunk);

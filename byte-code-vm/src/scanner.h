@@ -50,13 +50,13 @@ typedef enum {
   TOKEN_WHILE,
   TOKEN_ERROR,
   TOKEN_EOF
-} TokenType;
+} token_type;
 
 typedef struct {
-  TokenType type;
-  String lexeme;
-  Line line;
-} Token;
+  token_type type;
+  string_t lexeme;
+  line_t line;
+} token_t;
 
-void initScanner(const String source);
-const Token scanToken();
+void scanner_init(const string_t source);
+const token_t scanner_next_token();

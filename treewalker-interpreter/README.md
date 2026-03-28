@@ -1,6 +1,6 @@
 # Crafting Interpreters (TypeScript)
 
-This is a small hobby project where I am implementing the interpreter described in  
+This is a small project where I am implementing the interpreter described in  
 **Crafting Interpreters by Robert Nystrom**, using **TypeScript**.
 
 The goal of this implementation is educational, to better understand language design,

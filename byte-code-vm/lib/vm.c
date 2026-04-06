@@ -5,17 +5,17 @@
 #include "chunk.h"
 #include "common.h"
 #include "compiler.h"
-#include "hash_table.h"
+#include "environment.h"
 #include "memory.h"
-#include "vm.h"
-#ifdef DEBUG_TRACE_EXECUTION
-#include "debug.h"
-#endif
+#include "stack.h"
 #include "value.h"
+#include "variables.h"
+#include "vm.h"
 
 bool vm_is_end();
 vm_result_t vm_execute();
-byte_t vm_next_instruction();
+byte_t vm_instruction_next();
+void vm_instruction_skip(int steps);
 value_t vm_read_constant();
 void vm_add();
 void vm_subtract();
@@ -25,6 +25,8 @@ void vm_negate();
 void vm_equal();
 void vm_greater();
 void vm_less();
+void vm_variable_set();
+void vm_variable_get();
 void vm_runtime_error(const char *format, ...);
 
 vm_t vm;
@@ -34,20 +36,20 @@ void vm_init() {
   vm.ip = 0;
   chunk_init(vm.chunk);
   stack_init(&vm.stack);
-  hash_table_init(&vm.hash_table, value_free);
+  environment_init(&vm.environment);
 }
 
 void vm_free() {
   chunk_free(vm.chunk);
   delete(vm.chunk);
   stack_free(&vm.stack);
-  hash_table_free(&vm.hash_table);
+  environment_free(&vm.environment);
   vm.chunk = nullptr;
   vm.ip = 0;
 }
 
 vm_result_t vm_run(const string_t source) {
-  if (!compiler_run(source, vm.chunk, &vm.hash_table)) {
+  if (!compiler_run(source, vm.chunk, &vm.environment)) {
     return COMPILE_ERROR;
   }
   return vm_execute();
@@ -59,6 +61,8 @@ bool value_can_add(const value_t a, const value_t b) {
 }
 
 vm_result_t vm_execute() {
+
+  printf("--- vm execute ---\n");
 
 #define CHECK_BINARY_OPERANDS                                                  \
   if (!value_is_number(stack_peek_at(&vm.stack, 0)) ||                         \
@@ -81,7 +85,7 @@ vm_result_t vm_execute() {
   }
 
   while (!vm_is_end()) {
-    const auto instruction = vm_next_instruction();
+    const auto instruction = vm_instruction_next();
     switch (instruction) {
     case OP_CONSTANT:
       const auto constant = vm_read_constant();
@@ -135,10 +139,25 @@ vm_result_t vm_execute() {
       CHECK_BINARY_OPERANDS
       vm_less();
       break;
+    case OP_VARIABLE_DEFINE:
+      // NOTE: skip scope and offset
+      vm_instruction_skip(2);
+      break;
+    case OP_VARIABLE_SET:
+      vm_variable_set();
+      break;
+    case OP_VARIABLE_GET:
+      vm_variable_get();
+      break;
     case OP_RETURN: {
+      return OK;
+    } break;
+    case OP_PRINT: {
       value_print(stack_pop(&vm.stack));
       printf("\n");
-      return OK;
+    } break;
+    case OP_POP: {
+      stack_pop(&vm.stack);
     } break;
     default:
       break;
@@ -150,22 +169,33 @@ vm_result_t vm_execute() {
 
 bool vm_is_end() { return (vm.ip >= vm.chunk->count); }
 
-byte_t vm_next_instruction() {
-  if (vm.ip >= vm.chunk->count) {
-    // FIXME: Error?
-    return '\0';
-  }
+byte_t vm_instruction_next() {
+  assert(vm.ip < vm.chunk->count);
   auto const ip = vm.ip;
   auto const instruction = vm.chunk->code[ip];
-#ifdef DEBUG_TRACE_EXECUTION
-  debug_instruction(vm.chunk, ip);
+#ifdef DEBUG_ENABLED
+  printf("ip=%d, code[%d]=0x%x, opcode=%s\n", ip, ip, instruction,
+         opcode_as_string[instruction]);
 #endif
   vm.ip++;
   return instruction;
 }
 
+void vm_instruction_skip(int steps) {
+  assert(vm.ip + steps < vm.chunk->count);
+  vm.ip = vm.ip + steps;
+}
+
+byte_t vm_instruction_next_get() {
+  assert(vm.ip < vm.chunk->count);
+  auto const ip = vm.ip;
+  auto const instruction = vm.chunk->code[ip];
+  vm.ip++;
+  return instruction;
+}
+
 value_t vm_read_constant() {
-  const auto offset = (offset_t)vm_next_instruction();
+  const auto offset = (offset_t)vm_instruction_next_get();
   return vm.chunk->constants.values[offset];
 }
 
@@ -242,6 +272,24 @@ void vm_less() {
              value_from_bool(value_as_number(lhs) < value_as_number(rhs)));
 }
 
+void vm_variable_set() {
+  const auto scope = vm_instruction_next_get();
+  const auto offset = vm_instruction_next_get();
+  const auto value = stack_pop(&vm.stack);
+  const auto variable =
+      variables_get_at(vm.environment.scopes[scope].variables, offset);
+  variable->value = value;
+  stack_push(&vm.stack, value);
+}
+
+void vm_variable_get() {
+  const auto scope = vm_instruction_next_get();
+  const auto offset = vm_instruction_next_get();
+  const auto variable =
+      variables_get_at(vm.environment.scopes[scope].variables, offset);
+  stack_push(&vm.stack, variable->value);
+}
+
 void vm_runtime_error(const char *format, ...) {
   va_list args;
   va_start(args, format);
@@ -250,34 +298,4 @@ void vm_runtime_error(const char *format, ...) {
   fputs("\n", stderr);
   int line = vm.chunk->lines[vm.ip];
   fprintf(stderr, "[line %d] in script\n", line);
-}
-
-// TODO: mv to own source
-void stack_init(stack_t *stack) { stack->top = 0; }
-
-void stack_free(stack_t *stack) { stack->top = 0; }
-
-bool stack_is_empty(stack_t *stack) { return stack->top == 0; }
-
-offset_t stack_push(stack_t *stack, value_t value) {
-  assert(stack->top + 1 < STACK_SIZE);
-  stack->values[stack->top++] = value;
-  return stack->top - 1;
-}
-
-value_t stack_pop(stack_t *stack) {
-  assert(!stack_is_empty(stack));
-  return stack->values[--stack->top];
-}
-
-value_t stack_peek(stack_t *stack) {
-  assert(!stack_is_empty(stack));
-  auto const top = stack->top - 1;
-  return stack->values[top];
-}
-
-value_t stack_peek_at(stack_t *stack, int at) {
-  assert(!stack_is_empty(stack));
-  auto const index = stack->top - 1 - at;
-  return stack->values[index];
 }

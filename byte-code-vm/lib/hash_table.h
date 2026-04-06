@@ -4,7 +4,7 @@
 
 typedef struct {
   hash_t key;
-  value_t *value;
+  value_t value;
 } hash_entry_t;
 
 typedef void (*hash_entry_value_free)(value_t *value);

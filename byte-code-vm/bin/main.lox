@@ -1,0 +1,19 @@
+print "clox program";
+var mytest;
+mytest=0;
+{
+  var myvar;
+  myvar = 123;
+  {
+    var myvar=234;
+    print myvar;
+    mytest=2;
+  }
+  mytest = 1;
+  print mytest;
+  mytest = "outer";
+  {
+    var mytest=mytest;
+    print mytest;
+  }
+}

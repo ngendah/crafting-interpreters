@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "memory.h"
-#include "string.h"
+#include "string_utils.h"
 
 const hash_t string_hash(const char *str, size_t length) {
   // FNV-1a: pg? 589
@@ -33,6 +33,13 @@ const string_t _T(const char *str, size_t length) {
   return (string_t){.str = str,
                     .length = length,
                     .object = {.is_marked = false, .hash = hash}};
+}
+
+const string_t _T_M(const char *str, size_t length, bool is_marked) {
+  const auto hash = string_hash(str, length);
+  return (string_t){.str = str,
+                    .length = length,
+                    .object = {.is_marked = is_marked, .hash = hash}};
 }
 
 typedef struct {

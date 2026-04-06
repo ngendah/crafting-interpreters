@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "memory.h"
 #include "scanner.h"
 
 typedef struct {
@@ -20,10 +21,12 @@ token_t scanner_number();
 token_t scanner_identifier();
 token_t scanner_error_token(const string_t message);
 const char scanner_advance();
+const char scanner_skip(string_t skip_chars);
 const char scanner_peek();
 const char scanner_peek_next();
 bool scanner_match(const char chr);
-void scanner_skip_whitespace();
+void scanner_skip_space();
+void scanner_skip_comment();
 
 const token_type scanner_check_keyword(size_t start, const string_t rest,
                                        const token_type type) {
@@ -42,7 +45,8 @@ void scanner_init(const string_t source) {
 }
 
 const token_t scanner_next_token() {
-  scanner_skip_whitespace();
+  scanner_skip_space();
+  scanner_skip_comment();
   scanner.start = scanner.current;
   if (scanner_is_end())
     return scanner_make_token(TOKEN_EOF);
@@ -106,10 +110,6 @@ const token_t scanner_next_token() {
     return scanner_make_token(scanner_match('=') ? TOKEN_GREATER_EQUAL
                                                  : TOKEN_GREATER);
   } break;
-  case '\n': {
-    scanner.line++;
-    scanner_advance();
-  } break;
   case '"': {
     return scanner_string();
   } break;
@@ -128,11 +128,7 @@ bool scanner_is_end() { return scanner.current == scanner.eof; }
 token_t scanner_make_token(token_type type) {
   const token_t token = {
       .type = type,
-      .lexeme =
-          {
-              .str = scanner.start,
-              .length = (size_t)(scanner.current - scanner.start),
-          },
+      .lexeme = _T(scanner.start, (size_t)(scanner.current - scanner.start)),
       .line = scanner.line};
   return token;
 }
@@ -230,6 +226,14 @@ const char scanner_advance() {
   return chr;
 }
 
+const char scanner_skip(string_t skip_chars) {
+  // TODO: check
+  scanner.current = scanner.current + skip_chars.length;
+  return *scanner.current;
+}
+
+void scanner_nextline() { scanner.line++; }
+
 bool scanner_match(const char chr) {
   if (scanner_is_end())
     return false;
@@ -239,13 +243,47 @@ bool scanner_match(const char chr) {
   return true;
 }
 
-bool scanner_is_whitespace(const char chr) {
+bool scanner_is_space(const char chr) {
   return chr == ' ' || chr == '\r' || chr == '\t';
 }
 
-void scanner_skip_whitespace() {
-  while (scanner_is_whitespace(scanner_peek()) && !scanner_is_end())
+bool scanner_is_newline(const char chr) { return chr == '\n'; }
+
+bool scanner_is_space_or_newline(const char chr) {
+  return scanner_is_space(chr) || scanner_is_newline(chr);
+}
+
+void scanner_skip_space() {
+  while (scanner_is_space_or_newline(scanner_peek()) && !scanner_is_end()) {
+    if (scanner_is_newline(scanner_peek())) {
+      scanner_nextline();
+    }
     scanner_advance();
+  }
+}
+
+bool scanner_is_comment_start() {
+  return scanner_peek() == '/' &&
+         (scanner_peek_next() == '/' || scanner_peek_next() == '*');
+}
+
+bool scanner_is_comment_end(bool is_multi_line) {
+  if (is_multi_line)
+    return (scanner_peek() == '*' && scanner_peek_next() == '/');
+  return scanner_is_newline(scanner_peek());
+}
+
+void scanner_skip_comment() {
+  if (scanner_is_comment_start()) {
+    const bool is_multi_line = scanner_peek_next() == '*';
+    while (!scanner_is_comment_end(is_multi_line) && !scanner_is_end())
+      scanner_advance();
+    if (is_multi_line && scanner_is_comment_end(is_multi_line) &&
+        !scanner_is_end()) {
+      scanner_skip(_("*/"));
+    }
+  }
+  scanner_skip_space();
 }
 
 const char scanner_peek() { return *scanner.current; }
@@ -254,4 +292,19 @@ const char scanner_peek_next() {
   if (scanner_is_end())
     return '\0';
   return scanner.current[1];
+}
+
+string_t scanner_token_repr(const token_t token) {
+  constexpr int buffer_len = 256;
+  char *buffer = new_string(buffer_len);
+  const auto length = snprintf(
+      buffer, buffer_len, "token_t{.type=%s, .lexeme='%.*s', .line=%d}",
+      token_type_as_string[token.type], (int)token.lexeme.length,
+      token.lexeme.str, token.line);
+  return _T_M(buffer, length, true);
+}
+
+string_t scanner_token_type_repr(const token_type type) {
+  const char *str = token_type_as_string[type];
+  return _T_M(str, strlen(str), false);
 }

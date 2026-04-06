@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "string.h"
+#include "string_utils.h"
 
 typedef struct hash_table_t hash_table_t;
 
@@ -35,9 +35,11 @@ void values_init(values_t *values);
 void values_free(values_t *values);
 void values_write(values_t *values, value_t value);
 
+void value_init(value_t *value);
 void value_free(value_t *value);
 void value_print(value_t value);
 
+bool value_is_valid(value_t value);
 bool value_is_bool(value_t value);
 bool value_is_nil(value_t value);
 bool value_is_number(value_t value);

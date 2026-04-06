@@ -7,7 +7,7 @@
 
 extern vm_t vm;
 extern bool vm_is_end();
-extern byte_t vm_next_instruction();
+extern byte_t vm_instruction_next();
 extern vm_result_t vm_execute();
 extern void vm_add();
 extern void vm_subtract();
@@ -24,9 +24,9 @@ void test_vm_next_instruction() {
   vm_init();
   {
     chunk_write(vm.chunk, OP_ADD, 1);
-    byte_t instruction = vm_next_instruction();
+    byte_t instruction = vm_instruction_next();
     assert(instruction == OP_ADD);
-    instruction = vm_next_instruction();
+    instruction = vm_instruction_next();
     assert(instruction == '\0');
   }
   vm_free();

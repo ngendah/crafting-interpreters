@@ -21,7 +21,7 @@ void test_hash_table_add() {
     auto str = _("test str");
     auto value = value_from_string(str, nullptr);
     hash_table_add(&table,
-                   (hash_entry_t){.key = str.object.hash, .value = &value});
+                   (hash_entry_t){.key = str.object.hash, .value = value});
   }
   assert(table.count == 1);
   // FIXME: free value
@@ -36,11 +36,11 @@ void test_hash_table_get_value() {
   find_key = str1.object.hash;
   auto value1 = value_from_string(str1, nullptr);
   hash_table_add(&table,
-                 (hash_entry_t){.key = str1.object.hash, .value = &value1});
+                 (hash_entry_t){.key = str1.object.hash, .value = value1});
   auto str2 = _("test another str");
   auto value2 = value_from_string(str2, nullptr);
   hash_table_add(&table,
-                 (hash_entry_t){.key = str2.object.hash, .value = &value2});
+                 (hash_entry_t){.key = str2.object.hash, .value = value2});
   assert(table.count == 2);
   const value_t *value = hash_table_get_value(&table, find_key);
   assert(value != nullptr);

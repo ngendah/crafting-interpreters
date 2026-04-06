@@ -35,6 +35,8 @@ void values_free(values_t *values) {
   values->values = nullptr;
 }
 
+void value_init(value_t *value) { memset(value, 0, sizeof(value_t)); }
+
 void value_free(value_t *value) {
   if (value_is_string(*value)) {
     delete((void *)value->as.string.str);
@@ -52,10 +54,16 @@ void value_print(value_t value) {
   case VAL_BOOL:
     printf("%s", value_as_bool(value) ? "true" : "false");
     break;
+  case VAL_STRING: {
+    const auto str = value_as_string(value);
+    printf("%.*s", (int)str.length, str.str);
+  } break;
   default:
     break;
   }
 }
+
+bool value_is_valid(value_t value) { return value.type != 0; }
 
 bool value_is_bool(value_t value) { return value.type == VAL_BOOL; }
 
@@ -100,13 +108,13 @@ value_t value_from_string_notable(const string_t str) {
 
 value_t value_from_string_table(const string_t str, hash_table_t *hash_table) {
   auto pval = hash_table_get_value(hash_table, str.object.hash);
-  if (pval != nullptr) {
+  if (value_is_valid(*pval)) {
     return *pval;
   }
   const auto str_val = value_from_string_notable(str);
   auto pentry = hash_table_find(hash_table, str.object.hash);
-  memcpy(pentry->value, &str_val, sizeof(value_t));
-  return *(pentry->value);
+  memcpy(&pentry->value, &str_val, sizeof(value_t));
+  return pentry->value;
 }
 
 value_t value_from_string(const string_t str, hash_table_t *strings_table) {

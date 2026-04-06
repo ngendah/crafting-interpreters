@@ -22,8 +22,7 @@ void hash_table_entries_free(hash_table_t *table) {
     return;
   auto ptr = &table->entries[0];
   while (ptr != &table->entries[table->capacity]) {
-    if (ptr->value != nullptr)
-      table->value_free(ptr->value);
+    table->value_free(&ptr->value);
     ptr++;
   }
 }
@@ -78,7 +77,7 @@ hash_entry_t *hash_table_find(hash_table_t *table, hash_t key) {
 
 value_t *hash_table_get_value(hash_table_t *table, hash_t key) {
   const auto entry = hash_table_find(table, key);
-  return entry->value;
+  return &entry->value;
 }
 
 void hash_table_delete(hash_table_t *table, hash_t key) {
@@ -86,7 +85,7 @@ void hash_table_delete(hash_table_t *table, hash_t key) {
   if (entry->key != 0 && entry->key != tombstone) {
     entry->key = tombstone;
     if (table->value_free)
-      table->value_free(entry->value);
-    entry->value = nullptr;
+      table->value_free(&entry->value);
+    memset(&entry->value, 0, sizeof(value_t));
   }
 }

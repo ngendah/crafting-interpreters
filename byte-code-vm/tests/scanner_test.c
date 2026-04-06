@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -171,10 +172,31 @@ void test_keywords() {
   }
 }
 
+extern bool scanner_is_end();
+
+void test_scan_expression() {
+  const auto source = _("var myvar;\nmyvar=123;");
+  scanner_init(source);
+  token_t tokens[7] = {};
+  size_t index = 0;
+  while (!scanner_is_end()) {
+    tokens[index++] = scanner_next_token();
+  }
+  assert(index == 7);
+  assert(tokens[0].type == TOKEN_VAR);
+  assert(tokens[1].type == TOKEN_IDENTIFIER);
+  assert(tokens[2].type == TOKEN_SEMICOLON);
+  assert(tokens[3].type == TOKEN_IDENTIFIER);
+  assert(tokens[4].type == TOKEN_EQUAL);
+  assert(tokens[5].type == TOKEN_NUMBER);
+  assert(tokens[6].type == TOKEN_SEMICOLON);
+}
+
 int main() {
   test_comment();
   test_tokens();
   test_number();
   test_keywords();
+  test_scan_expression();
   return EXIT_SUCCESS;
 }

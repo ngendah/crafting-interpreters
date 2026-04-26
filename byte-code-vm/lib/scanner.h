@@ -103,5 +103,6 @@ typedef struct {
 
 void scanner_init(const string_t source);
 const token_t scanner_next_token();
+bool scanner_is_end();
 string_t scanner_token_repr(const token_t token);
 string_t scanner_token_type_repr(token_type type);

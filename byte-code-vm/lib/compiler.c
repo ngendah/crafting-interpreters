@@ -11,6 +11,9 @@
 #include "value.h"
 #include "variables.h"
 
+#define LO_BYTE(x) ((x >> 8) & 0xff)
+#define HI_BYTE(x) (x & 0xff)
+
 typedef enum : byte_t {
   PREC_NONE = 0x01, // Lowest
   PREC_ASSIGNMENT,
@@ -66,8 +69,10 @@ void compiler_error(const string_t message);
 void compiler_error_at(const token_t token, const string_t message);
 bool compiler_is_end();
 void compiler_advance();
-void compiler_emit_byte(byte_t code);
-void compiler_emit_word(byte_t code1, byte_t code2);
+offset_t compiler_emit_byte(byte_t code);
+offset_t compiler_emit_word(byte_t code1, byte_t code2);
+offset_t compiler_emit_half_dword(byte_t code1, byte_t code2, byte_t code3);
+offset_t compiler_emit_jump_word(byte_t code);
 void compiler_emit_constant(value_t value);
 void compiler_emit_return();
 bool compiler_check(token_type type);
@@ -77,6 +82,7 @@ void compiler_end();
 void compiler_declaration();
 void compiler_declaration_variable();
 void compiler_statement();
+void compiler_statement_if();
 void compiler_statement_print();
 void compiler_statement_expression();
 void compiler_expression();
@@ -90,11 +96,9 @@ void compiler_number();
 void compiler_literal();
 void compiler_string();
 void compiler_variable();
+void compiler_patch_jump(uint16_t at);
 void compiler_parse_precedence(precedence_t precedence);
 
-void compiler_print_byte(byte_t code);
-void compiler_print_word(byte_t code1, byte_t code2);
-void compiler_print_half_dword(byte_t code1, byte_t code2, byte_t code3);
 void compiler_print_codes(int steps_back);
 
 parse_rule_t compiler_get_rule(token_type type);
@@ -158,31 +162,36 @@ void compiler_advance() {
 
 void compiler_end() { return compiler_emit_return(); }
 
-void compiler_emit_byte(byte_t code) {
-  chunk_write(parser.chunk, code, parser.previous.line);
+offset_t compiler_emit_byte(byte_t code) {
+  const auto offset = chunk_write(parser.chunk, code, parser.previous.line);
 #ifdef DEBUG_ENABLED
-  compiler_print_byte(code);
   compiler_print_codes(1);
 #endif
+  return offset;
 }
 
-void compiler_emit_word(byte_t code1, byte_t code2) {
+offset_t compiler_emit_word(byte_t code1, byte_t code2) {
   chunk_write(parser.chunk, code1, parser.previous.line);
-  chunk_write(parser.chunk, code2, parser.previous.line);
+  const auto offset = chunk_write(parser.chunk, code2, parser.previous.line);
 #ifdef DEBUG_ENABLED
-  compiler_print_word(code1, code2);
   compiler_print_codes(2);
 #endif
+  return offset;
 }
 
-void compiler_emit_half_dword(byte_t code1, byte_t code2, byte_t code3) {
+offset_t compiler_emit_half_dword(byte_t code1, byte_t code2, byte_t code3) {
   chunk_write(parser.chunk, code1, parser.previous.line);
   chunk_write(parser.chunk, code2, parser.previous.line);
-  chunk_write(parser.chunk, code3, parser.previous.line);
+  const auto offset = chunk_write(parser.chunk, code3, parser.previous.line);
 #ifdef DEBUG_ENABLED
-  compiler_print_half_dword(code1, code2, code3);
   compiler_print_codes(3);
 #endif
+  return offset;
+}
+
+offset_t compiler_emit_jump_word(byte_t code) {
+  compiler_emit_byte(code);
+  return compiler_emit_word(0xff, 0xff);
 }
 
 void compiler_emit_constant(value_t value) {
@@ -197,12 +206,11 @@ void compiler_emit_constant(value_t value) {
 void compiler_emit_return() { compiler_emit_byte(OP_RETURN); }
 
 void compiler_declaration() {
-  if (compiler_match(TOKEN_VAR)) {
+  if (compiler_check(TOKEN_VAR)) {
+    compiler_advance();
     compiler_declaration_variable();
-  } else if (compiler_match(TOKEN_LEFT_BRACE)) {
-    compiler_scope_begin();
+  } else if (compiler_check(TOKEN_LEFT_BRACE)) {
     compiler_block();
-    compiler_scope_end();
   } else {
     compiler_statement();
   }
@@ -234,6 +242,8 @@ void compiler_declaration_variable() {
 void compiler_statement() {
   if (compiler_match(TOKEN_PRINT)) {
     compiler_statement_print();
+  } else if (compiler_match(TOKEN_IF)) {
+    compiler_statement_if();
   } else {
     compiler_statement_expression();
   }
@@ -243,6 +253,33 @@ void compiler_statement_print() {
   compiler_expression();
   compiler_consume(TOKEN_SEMICOLON, _("Expect ';' after value."));
   compiler_emit_byte(OP_PRINT);
+}
+
+void compiler_assert_jump(offset_t offset) {
+  if (offset > UINT16_MAX) {
+    compiler_error(_("Cannot make long jumps."));
+    assert(offset <= UINT16_MAX);
+  }
+}
+
+void compiler_statement_if() {
+  compiler_consume(TOKEN_LEFT_PAREN, _("Expect '(' after 'if'."));
+  compiler_expression();
+  compiler_consume(TOKEN_RIGHT_PAREN, _("Expect ')' after condition."));
+  // NOTE: Record the start of the if-block
+  // set the number of instructions to jump to some dummy value
+  auto jmp_code_at = compiler_emit_jump_word(OP_JUMP_IF_FALSE);
+  compiler_emit_byte(OP_POP);
+  compiler_block();
+  // NOTE: Calculate the actual number of instructions to jump
+  // replace the dummy jump values with the actual values.
+  compiler_patch_jump(jmp_code_at);
+  compiler_emit_byte(OP_POP);
+  if (compiler_match(TOKEN_ELSE)) {
+    compiler_block();
+    jmp_code_at = compiler_emit_jump_word(OP_JUMP);
+    compiler_patch_jump(jmp_code_at);
+  }
 }
 
 void compiler_statement_expression() {
@@ -259,9 +296,12 @@ void compiler_scope_begin() {
 }
 
 void compiler_block() {
+  compiler_consume(TOKEN_LEFT_BRACE, _("Expect '{' before block."));
+  compiler_scope_begin();
   while (!compiler_check(TOKEN_RIGHT_BRACE) && !compiler_check(TOKEN_EOF)) {
     compiler_declaration();
   }
+  compiler_scope_end();
   compiler_consume(TOKEN_RIGHT_BRACE, _("Expect '}' after block."));
 }
 
@@ -448,6 +488,17 @@ parse_rule_t compiler_get_rule(token_type type) {
   return RULE(nullptr, nullptr, PREC_NONE);
 }
 
+void compiler_patch_jump(uint16_t at) {
+  auto jump_steps = chunk_length(parser.chunk) - at;
+  assert(jump_steps < UINT16_MAX);
+#ifdef DEBUG_ENABLED
+  printf("patching jump instruction at: ip=%d, jump steps=%d, jump to: ip=%d\n",
+         at - 1, jump_steps, at + jump_steps + 1);
+#endif
+  chunk_code_set_at(parser.chunk, at - 1, LO_BYTE(jump_steps));
+  chunk_code_set_at(parser.chunk, at, HI_BYTE(jump_steps));
+}
+
 void compiler_parse_precedence(precedence_t precedence) {
   compiler_advance();
   auto prefixRule = compiler_get_rule(parser.previous.type).prefix;
@@ -471,20 +522,6 @@ void compiler_parse_precedence(precedence_t precedence) {
   };
 }
 
-void compiler_print_byte(byte_t code) {
-  //  printf("%s: code=%s\n", __PRETTY_FUNCTION__, opcode_as_string[code]);
-}
-
-void compiler_print_word(byte_t code, byte_t arg) {
-  //  printf("%s: code=%s, offset=%d\n", __PRETTY_FUNCTION__,
-  //        opcode_as_string[code], arg);
-}
-
-void compiler_print_half_dword(byte_t code, byte_t arg1, byte_t arg2) {
-  // printf("%s: code=%s, scope=%d, offset=%d\n", __PRETTY_FUNCTION__,
-  //        opcode_as_string[code], arg1, arg2);
-}
-
 void compiler_print_codes(int steps_back) {
   const auto count = parser.chunk->count;
   const auto ip = count - steps_back;
@@ -499,10 +536,16 @@ void compiler_print_codes(int steps_back) {
            ptr[ip + 1], ip + 2, ptr[ip + 2]);
   } break;
   case 2: {
-    printf("line=%d: count=%zu: ip=%zu, opcode=code[%zu]=%s, "
-           "offset=code[%zu]=0x%x\n",
-           line, count, ip, ip + 0, opcode_as_string[ptr[ip + 0]], ip + 1,
-           ptr[ip + 1]);
+    if (ptr[ip + 0] == 0xff) {
+      printf("line=%d: count=%zu: ip=%zu, opcode=code[%zu]=0x%x, "
+             "offset=code[%zu]=0x%x\n",
+             line, count, ip, ip + 0, ptr[ip + 0], ip + 1, ptr[ip + 1]);
+    } else {
+      printf("line=%d: count=%zu: ip=%zu, opcode=code[%zu]=%s, "
+             "offset=code[%zu]=0x%x\n",
+             line, count, ip, ip + 0, opcode_as_string[ptr[ip + 0]], ip + 1,
+             ptr[ip + 1]);
+    }
   } break;
   case 1: {
     printf("line=%d: count=%zu: ip=%zu, opcode=code[%zu]=%s\n", line, count, ip,

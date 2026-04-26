@@ -20,18 +20,6 @@ void test_vm_is_end() {
   vm_free();
 }
 
-void test_vm_next_instruction() {
-  vm_init();
-  {
-    chunk_write(vm.chunk, OP_ADD, 1);
-    byte_t instruction = vm_instruction_next();
-    assert(instruction == OP_ADD);
-    instruction = vm_instruction_next();
-    assert(instruction == '\0');
-  }
-  vm_free();
-}
-
 void test_add_operation() {
   vm_init();
   {
@@ -62,10 +50,59 @@ void test_subtract_operation() {
   vm_free();
 }
 
+void test_block_statement() {
+  vm_init();
+  auto source = _("{"
+                  " print \"2\";"
+                  "}");
+  auto result = vm_run(source);
+  vm_free();
+  assert(result == OK);
+}
+
+void test_if_statement() {
+  vm_init();
+  auto source = _("if(true){"
+                  " print \"true\";"
+                  "}");
+  auto result = vm_run(source);
+  vm_free();
+  assert(result == OK);
+}
+
+void test_variable_statements() {
+  vm_init();
+  auto source = _("\n"
+                  "print \"clox program\";\n"
+                  "var mytest;\n"
+                  "mytest=0;\n"
+                  "{\n"
+                  "  var myvar;\n"
+                  "  myvar = 123;\n"
+                  "  {\n"
+                  "    var myvar=234;\n"
+                  "    print myvar;\n"
+                  "    mytest=2;\n"
+                  "  }\n"
+                  "  mytest = 1;\n"
+                  "  print mytest;\n"
+                  "  mytest = \"outer\";"
+                  "  {\n"
+                  "    var mytest=mytest;\n"
+                  "    print mytest;\n"
+                  "  }\n"
+                  "}\n");
+  auto result = vm_run(source);
+  vm_free();
+  assert(result == OK);
+}
+
 int main() {
   test_vm_is_end();
-  test_vm_next_instruction();
   test_add_operation();
   test_subtract_operation();
+  test_block_statement();
+  test_if_statement();
+  test_variable_statements();
   return EXIT_SUCCESS;
 }

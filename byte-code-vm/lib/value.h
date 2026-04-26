@@ -45,6 +45,8 @@ bool value_is_nil(value_t value);
 bool value_is_number(value_t value);
 bool value_is_object(value_t value);
 bool value_is_string(value_t value);
+bool value_is_truthy(value_t value);
+bool value_is_falsey(value_t value);
 
 value_t value_nil();
 value_t value_from_bool(bool value);

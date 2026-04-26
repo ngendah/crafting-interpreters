@@ -13,7 +13,10 @@ typedef struct {
   values_t constants;
 } chunk_t;
 
-void chunk_init(chunk_t *chunk);
-void chunk_free(chunk_t *chunk);
-void chunk_write(chunk_t *chunk, byte_t byte, line_t line);
-offset_t chunk_add_constant(chunk_t *chunk, value_t value);
+void chunk_init(chunk_t *const chunk);
+void chunk_free(chunk_t *const chunk);
+offset_t chunk_write(chunk_t *const chunk, byte_t byte, line_t line);
+offset_t chunk_add_constant(chunk_t *const chunk, value_t value);
+offset_t chunk_length(chunk_t *const chunk);
+bool chunk_is_empty(chunk_t *const chunk);
+void chunk_code_set_at(chunk_t *const chunk, offset_t at, byte_t byte);

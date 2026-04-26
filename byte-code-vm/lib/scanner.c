@@ -84,12 +84,7 @@ const token_t scanner_next_token() {
     return scanner_make_token(TOKEN_PLUS);
   } break;
   case '/': {
-    if (scanner_peek() == '/') {
-      while (scanner_peek() != '\n' && !scanner_is_end())
-        scanner_advance();
-    } else {
-      return scanner_make_token(TOKEN_SLASH);
-    }
+    return scanner_make_token(TOKEN_SLASH);
   } break;
   case '*': {
     return scanner_make_token(TOKEN_STAR);
@@ -274,7 +269,7 @@ bool scanner_is_comment_end(bool is_multi_line) {
 }
 
 void scanner_skip_comment() {
-  if (scanner_is_comment_start()) {
+  while (scanner_is_comment_start()) {
     const bool is_multi_line = scanner_peek_next() == '*';
     while (!scanner_is_comment_end(is_multi_line) && !scanner_is_end())
       scanner_advance();
@@ -282,8 +277,8 @@ void scanner_skip_comment() {
         !scanner_is_end()) {
       scanner_skip(_("*/"));
     }
+    scanner_skip_space();
   }
-  scanner_skip_space();
 }
 
 const char scanner_peek() { return *scanner.current; }

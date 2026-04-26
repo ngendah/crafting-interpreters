@@ -1,8 +1,9 @@
 #include "chunk.h"
+#include "common.h"
 #include "memory.h"
 #include "value.h"
 
-void chunk_write(chunk_t *chunk, byte_t byte, line_t line) {
+offset_t chunk_write(chunk_t *chunk, byte_t byte, line_t line) {
   if (chunk->count + 1 >= chunk->capacity) {
     size_t len = chunk->capacity * GROW_RATE;
     // BUG:
@@ -10,9 +11,11 @@ void chunk_write(chunk_t *chunk, byte_t byte, line_t line) {
     chunk->lines = resize(chunk->lines, len * sizeof(line_t));
     chunk->capacity = len;
   }
-  chunk->code[chunk->count] = byte;
-  chunk->lines[chunk->count] = line;
+  const auto at = chunk->count;
+  chunk->code[at] = byte;
+  chunk->lines[at] = line;
   chunk->count++;
+  return at;
 }
 
 offset_t chunk_add_constant(chunk_t *chunk, value_t value) {
@@ -36,4 +39,16 @@ void chunk_free(chunk_t *const chunk) {
   chunk->capacity = 0;
   chunk->code = nullptr;
   chunk->lines = nullptr;
+}
+
+offset_t chunk_length(chunk_t *const chunk) {
+  if (chunk->count == 0)
+    return 0;
+  return chunk->count - 1;
+}
+
+bool chunk_is_empty(chunk_t *const chunk) { return chunk->count == 0; }
+
+void chunk_code_set_at(chunk_t *const chunk, offset_t at, byte_t byte) {
+  chunk->code[at] = byte;
 }

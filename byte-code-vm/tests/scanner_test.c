@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "scanner.h"
+#include "string_utils.h"
 
 void test_comment() {
   scanner_init(_("// this is a comment"));
@@ -172,7 +173,47 @@ void test_keywords() {
   }
 }
 
-extern bool scanner_is_end();
+void test_comments_1() {
+  const auto source = _("//if(true){\n//  print \" 1 \";\n//}");
+  scanner_init(source);
+  token_t tokens[2] = {};
+  size_t index = 0;
+  while (!scanner_is_end()) {
+    tokens[index++] = scanner_next_token();
+  }
+  assert(index == 1);
+  assert(tokens[0].type == TOKEN_EOF);
+}
+
+void test_comments_2() {
+  const auto source = _("/*\n* if(true){\n* print \"1\";\n}*/");
+  scanner_init(source);
+  token_t tokens[2] = {};
+  size_t index = 0;
+  while (!scanner_is_end()) {
+    tokens[index++] = scanner_next_token();
+  }
+  assert(index == 1);
+  assert(tokens[0].type == TOKEN_EOF);
+}
+
+void test_comments_3() {
+  const auto source = _("//if(true){\n"
+                        "//  print \"1\";\n"
+                        "//}\n "
+                        "/*\n "
+                        " * if(true){ "
+                        " * print \"1\"; \n"
+                        "}*/");
+  scanner_init(source);
+  token_t tokens[2] = {};
+  size_t index = 0;
+  while (!scanner_is_end()) {
+    tokens[index++] = scanner_next_token();
+  }
+  assert(index == 1);
+  assert(tokens[0].type == TOKEN_EOF);
+}
 
 void test_scan_expression() {
   const auto source = _("var myvar;\nmyvar=123;");
@@ -197,6 +238,9 @@ int main() {
   test_tokens();
   test_number();
   test_keywords();
+  test_comments_1();
+  test_comments_2();
+  test_comments_3();
   test_scan_expression();
   return EXIT_SUCCESS;
 }

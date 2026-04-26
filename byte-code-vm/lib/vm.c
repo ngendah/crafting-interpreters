@@ -25,6 +25,9 @@ void vm_negate();
 void vm_equal();
 void vm_greater();
 void vm_less();
+void vm_print();
+void vm_jump();
+void vm_jump_if_false();
 void vm_variable_set();
 void vm_variable_get();
 void vm_runtime_error(const char *format, ...);
@@ -149,12 +152,17 @@ vm_result_t vm_execute() {
     case OP_VARIABLE_GET:
       vm_variable_get();
       break;
+    case OP_JUMP:
+      vm_jump();
+      break;
+    case OP_JUMP_IF_FALSE:
+      vm_jump_if_false();
+      break;
     case OP_RETURN: {
       return OK;
     } break;
     case OP_PRINT: {
-      value_print(stack_pop(&vm.stack));
-      printf("\n");
+      vm_print();
     } break;
     case OP_POP: {
       stack_pop(&vm.stack);
@@ -265,11 +273,46 @@ void vm_greater() {
              value_from_bool(value_as_number(lhs) > value_as_number(rhs)));
 }
 
+void vm_print() {
+  const auto value = stack_pop(&vm.stack);
+  value_print(value);
+  printf("\n");
+  stack_push(&vm.stack, value);
+}
+
 void vm_less() {
   auto const rhs = stack_pop(&vm.stack);
   auto const lhs = stack_pop(&vm.stack);
   stack_push(&vm.stack,
              value_from_bool(value_as_number(lhs) < value_as_number(rhs)));
+}
+
+#define MAKE_WORD(hi, lo) (uint16_t)((hi << 8 | lo))
+
+uint16_t vm_read_word() {
+  const auto hi_byte = vm_instruction_next_get();
+  const auto lo_byte = vm_instruction_next_get();
+  uint16_t word = MAKE_WORD(hi_byte, lo_byte);
+  return word;
+}
+
+void vm_jump() {
+  auto jump_steps = vm_read_word();
+#ifdef DEBUG_ENABLED
+  printf("ip=%d,jump_offset=%d\n", vm.ip, jump_steps);
+#endif
+  vm.ip += jump_steps;
+}
+
+void vm_jump_if_false() {
+  auto condition = stack_pop(&vm.stack);
+  auto jump_steps = vm_read_word();
+#ifdef DEBUG_ENABLED
+  printf("ip=%d, condition=%b, jump_offset=%d\n", vm.ip,
+         value_is_falsey(condition), jump_steps);
+#endif
+  vm.ip += value_is_falsey(condition) * jump_steps;
+  stack_push(&vm.stack, condition);
 }
 
 void vm_variable_set() {

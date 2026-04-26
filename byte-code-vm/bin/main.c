@@ -6,7 +6,21 @@
 #include "chunk.h"
 #include "compiler.h"
 #include "environment.h"
+#include "scanner.h"
+#include "string_utils.h"
 #include "vm.h"
+
+void run_scanner(const string_t source) {
+  scanner_init(source);
+  constexpr auto max_tokens = 100u;
+  token_t tokens[max_tokens] = {};
+  size_t index = 0;
+  while (!scanner_is_end()) {
+    tokens[index++] = scanner_next_token();
+    assert(index < max_tokens);
+  }
+  printf("tokens=%zu\n", index);
+}
 
 void run_compiler(const string_t source) {
   chunk_t chunk;

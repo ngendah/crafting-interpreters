@@ -75,6 +75,25 @@ bool value_is_object(value_t value) { return value.type == VAL_OBJECT; }
 
 bool value_is_string(value_t value) { return value.type == VAL_STRING; }
 
+bool value_is_truthy(value_t value) {
+  switch (value.type) {
+  case VAL_BOOL:
+    return value_as_bool(value);
+  case VAL_NIL:
+    return false;
+  case VAL_NUMBER:
+    return value_as_number(value) != 0;
+  case VAL_STRING:
+    return value_as_string(value).length > 0;
+    // TODO: Implement VAL_OBJECT check
+  default:
+    break;
+  }
+  return false;
+}
+
+bool value_is_falsey(value_t value) { return !value_is_truthy(value); }
+
 value_t value_nil() { return (value_t){.type = VAL_NIL, .as = {.number = 0}}; }
 
 value_t value_from_bool(bool value) {

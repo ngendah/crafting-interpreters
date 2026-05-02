@@ -44,7 +44,7 @@ void chunk_free(chunk_t *const chunk) {
 offset_t chunk_length(chunk_t *const chunk) {
   if (chunk->count == 0)
     return 0;
-  return chunk->count - 1;
+  return chunk->count;
 }
 
 bool chunk_is_empty(chunk_t *const chunk) { return chunk->count == 0; }

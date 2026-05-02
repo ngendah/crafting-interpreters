@@ -46,6 +46,7 @@ typedef struct {
   token_t previous, current;
   precedence_context_t precedence_context;
   bool has_err;
+  bool debug_print_codes;
 } parser_t;
 
 parser_t parser;
@@ -63,6 +64,7 @@ void parser_init(chunk_t *chunk, environment_t *environment) {
   };
   environment_scope_add(parser.environment);
   parser.scope = 0;
+  parser.debug_print_codes = true;
 }
 
 void compiler_error(const string_t message);
@@ -73,8 +75,10 @@ offset_t compiler_emit_byte(byte_t code);
 offset_t compiler_emit_word(byte_t code1, byte_t code2);
 offset_t compiler_emit_half_dword(byte_t code1, byte_t code2, byte_t code3);
 offset_t compiler_emit_jump_word(byte_t code);
+offset_t compiler_instruction_pointer();
 void compiler_emit_constant(value_t value);
 void compiler_emit_return();
+void compiler_emit_loop(uint16_t loop_start_at);
 bool compiler_check(token_type type);
 bool compiler_match(token_type type);
 void compiler_consume(token_type type, const string_t message);
@@ -83,6 +87,7 @@ void compiler_declaration();
 void compiler_declaration_variable();
 void compiler_statement();
 void compiler_statement_if();
+void compiler_statement_while();
 void compiler_statement_print();
 void compiler_statement_expression();
 void compiler_expression();
@@ -96,6 +101,8 @@ void compiler_number();
 void compiler_literal();
 void compiler_string();
 void compiler_variable();
+void compiler_and();
+void compiler_or();
 void compiler_patch_jump(uint16_t at);
 void compiler_parse_precedence(precedence_t precedence);
 
@@ -194,6 +201,11 @@ offset_t compiler_emit_jump_word(byte_t code) {
   return compiler_emit_word(0xff, 0xff);
 }
 
+offset_t compiler_instruction_pointer() {
+  auto at = chunk_length(parser.chunk);
+  return at == 0 ? at : at - 1;
+}
+
 void compiler_emit_constant(value_t value) {
   auto offset = chunk_add_constant(parser.chunk, value);
   if (offset >= UINT8_MAX) {
@@ -204,6 +216,27 @@ void compiler_emit_constant(value_t value) {
 }
 
 void compiler_emit_return() { compiler_emit_byte(OP_RETURN); }
+
+void compiler_emit_loop(uint16_t loop_start_at) {
+  compiler_emit_byte(OP_LOOP);
+  // NOTE: -1 to point to the beginning of the 2 byte jmp instruction
+  // + 2 to point to the beginning of the loop instruction (skipping the jump
+  // op_code)
+  const auto loop_start_ip = loop_start_at - 1 + 2;
+  const auto ip = compiler_instruction_pointer();
+  const auto jmp_steps = ip - loop_start_ip;
+  assert(jmp_steps < UINT16_MAX);
+#ifdef DEBUG_ENABLED
+  auto print_codes = parser.debug_print_codes;
+  parser.debug_print_codes = false;
+#endif
+  compiler_emit_word(LO_BYTE(jmp_steps), HI_BYTE(jmp_steps));
+#ifdef DEBUG_ENABLED
+  printf("loop: ip=%d, jump_steps=%d, loop_start_at=%d, loop_back_ip=%d\n", ip,
+         -jmp_steps, loop_start_ip, ip - jmp_steps);
+  parser.debug_print_codes = print_codes;
+#endif
+}
 
 void compiler_declaration() {
   if (compiler_check(TOKEN_VAR)) {
@@ -244,6 +277,8 @@ void compiler_statement() {
     compiler_statement_print();
   } else if (compiler_match(TOKEN_IF)) {
     compiler_statement_if();
+  } else if (compiler_match(TOKEN_WHILE)) {
+    compiler_statement_while();
   } else {
     compiler_statement_expression();
   }
@@ -280,6 +315,19 @@ void compiler_statement_if() {
     jmp_code_at = compiler_emit_jump_word(OP_JUMP);
     compiler_patch_jump(jmp_code_at);
   }
+}
+
+void compiler_statement_while() {
+  const auto loop_start_at = compiler_instruction_pointer();
+  compiler_consume(TOKEN_LEFT_PAREN, _("Expect '(' after 'while'."));
+  compiler_expression();
+  compiler_consume(TOKEN_RIGHT_PAREN, _("Expect ')' after condition."));
+  auto jmp_code_at = compiler_emit_jump_word(OP_JUMP_IF_FALSE);
+  compiler_emit_byte(OP_POP);
+  compiler_block();
+  compiler_emit_loop(loop_start_at);
+  compiler_patch_jump(jmp_code_at);
+  compiler_emit_byte(OP_POP);
 }
 
 void compiler_statement_expression() {
@@ -401,6 +449,24 @@ void compiler_string() {
   compiler_emit_constant(value);
 }
 
+void compiler_and() {
+  // NOTE: Chapter 23.2
+  auto jmp_code_at = compiler_emit_jump_word(OP_JUMP_IF_FALSE);
+  compiler_emit_byte(OP_POP);
+  compiler_parse_precedence(PREC_AND);
+  compiler_patch_jump(jmp_code_at);
+}
+
+void compiler_or() {
+  // NOTE: Chapter 23.2.1
+  auto else_jmp_code_at = compiler_emit_jump_word(OP_JUMP_IF_FALSE);
+  auto end_jmp_code_at = compiler_emit_jump_word(OP_JUMP);
+  compiler_patch_jump(else_jmp_code_at);
+  compiler_emit_byte(OP_POP);
+  compiler_parse_precedence(PREC_OR);
+  compiler_patch_jump(end_jmp_code_at);
+}
+
 typedef struct {
   offset_t offset;
   int scope;
@@ -482,6 +548,12 @@ parse_rule_t compiler_get_rule(token_type type) {
     return RULE(compiler_string, nullptr, PREC_NONE);
   case TOKEN_IDENTIFIER:
     return RULE(compiler_variable, nullptr, PREC_NONE);
+  case TOKEN_AND:
+    return RULE(nullptr, compiler_and, PREC_AND);
+    break;
+  case TOKEN_OR:
+    return RULE(nullptr, compiler_or, PREC_OR);
+    break;
   default:
     break;
   }
@@ -489,14 +561,20 @@ parse_rule_t compiler_get_rule(token_type type) {
 }
 
 void compiler_patch_jump(uint16_t at) {
-  auto jump_steps = chunk_length(parser.chunk) - at;
-  assert(jump_steps < UINT16_MAX);
+  auto ip = compiler_instruction_pointer();
+  auto patch_ip = at - 1;
+  auto jmp_steps = ip - at;
+  assert(jmp_steps < UINT16_MAX);
 #ifdef DEBUG_ENABLED
-  printf("patching jump instruction at: ip=%d, jump steps=%d, jump to: ip=%d\n",
-         at - 1, jump_steps, at + jump_steps + 1);
+  // NOTE: +2 because jump offsets are 2 bytes
+  const auto from = patch_ip + 2;
+  const auto to = from + jmp_steps;
+  printf("jump_patch: ip=%d, patch_ip=%d, jump_steps=%d(%#X), from_ip=%d, "
+         "to_ip=%d\n",
+         ip, patch_ip, jmp_steps, jmp_steps, from, to);
 #endif
-  chunk_code_set_at(parser.chunk, at - 1, LO_BYTE(jump_steps));
-  chunk_code_set_at(parser.chunk, at, HI_BYTE(jump_steps));
+  chunk_code_set_at(parser.chunk, patch_ip, LO_BYTE(jmp_steps));
+  chunk_code_set_at(parser.chunk, patch_ip + 1, HI_BYTE(jmp_steps));
 }
 
 void compiler_parse_precedence(precedence_t precedence) {
@@ -523,6 +601,8 @@ void compiler_parse_precedence(precedence_t precedence) {
 }
 
 void compiler_print_codes(int steps_back) {
+  if (!parser.debug_print_codes)
+    return;
   const auto count = parser.chunk->count;
   const auto ip = count - steps_back;
   const auto ptr = parser.chunk->code;

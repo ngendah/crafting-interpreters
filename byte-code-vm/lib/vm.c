@@ -26,6 +26,7 @@ void vm_equal();
 void vm_greater();
 void vm_less();
 void vm_print();
+void vm_loop();
 void vm_jump();
 void vm_jump_if_false();
 void vm_variable_set();
@@ -158,6 +159,9 @@ vm_result_t vm_execute() {
     case OP_JUMP_IF_FALSE:
       vm_jump_if_false();
       break;
+    case OP_LOOP:
+      vm_loop();
+      break;
     case OP_RETURN: {
       return OK;
     } break;
@@ -274,10 +278,10 @@ void vm_greater() {
 }
 
 void vm_print() {
-  const auto value = stack_pop(&vm.stack);
+  const auto value = stack_peek(&vm.stack);
   value_print(value);
   printf("\n");
-  stack_push(&vm.stack, value);
+  stack_push(&vm.stack, value_nil());
 }
 
 void vm_less() {
@@ -305,24 +309,33 @@ void vm_jump() {
 }
 
 void vm_jump_if_false() {
-  auto condition = stack_pop(&vm.stack);
+  auto condition = stack_peek(&vm.stack);
   auto jump_steps = vm_read_word();
 #ifdef DEBUG_ENABLED
   printf("ip=%d, condition=%b, jump_offset=%d\n", vm.ip,
          value_is_falsey(condition), jump_steps);
 #endif
   vm.ip += value_is_falsey(condition) * jump_steps;
-  stack_push(&vm.stack, condition);
+}
+
+void vm_loop() {
+  // NOTE: -1 because the ip will be pointing to the next instruction
+  const auto loop_start_ip = vm.ip - 1;
+  const auto jmp_steps = vm_read_word();
+  const auto new_ip = loop_start_ip - jmp_steps;
+#ifdef DEBUG_ENABLED
+  printf("ip=%d, jump_steps=%d, ip=%d\n", loop_start_ip, -jmp_steps, new_ip);
+#endif
+  vm.ip = new_ip;
 }
 
 void vm_variable_set() {
   const auto scope = vm_instruction_next_get();
   const auto offset = vm_instruction_next_get();
-  const auto value = stack_pop(&vm.stack);
+  const auto value = stack_peek(&vm.stack);
   const auto variable =
       variables_get_at(vm.environment.scopes[scope].variables, offset);
   variable->value = value;
-  stack_push(&vm.stack, value);
 }
 
 void vm_variable_get() {

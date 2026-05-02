@@ -31,6 +31,7 @@ typedef enum : byte_t {
   OP_VARIABLE_SET,
   OP_JUMP,
   OP_JUMP_IF_FALSE,
+  OP_LOOP,
 } opcode_t;
 
 static const char *opcode_as_string[] = {
@@ -56,6 +57,7 @@ static const char *opcode_as_string[] = {
     [OP_VARIABLE_SET] = "OP_VARIABLE_SET",
     [OP_JUMP] = "OP_JUMP",
     [OP_JUMP_IF_FALSE] = "OP_JUMP_IF_FALSE",
+    [OP_LOOP] = "OP_LOOP",
 };
 
 typedef struct {

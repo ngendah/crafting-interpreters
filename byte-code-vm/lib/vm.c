@@ -8,8 +8,8 @@
 #include "environment.h"
 #include "memory.h"
 #include "stack.h"
+#include "symbols.h"
 #include "value.h"
-#include "variables.h"
 #include "vm.h"
 
 bool vm_is_end();
@@ -335,17 +335,17 @@ void vm_variable_set() {
   const auto scope = vm_instruction_next_get();
   const auto offset = vm_instruction_next_get();
   const auto value = stack_peek(&vm.stack);
-  const auto variable =
-      variables_get_at(vm.environment.scopes[scope].variables, offset);
-  variable->value = value;
+  const auto symbol =
+      symbols_get_at(vm.environment.scopes[scope].symbols, offset);
+  symbol->value = value;
 }
 
 void vm_variable_get() {
   const auto scope = vm_instruction_next_get();
   const auto offset = vm_instruction_next_get();
-  const auto variable =
-      variables_get_at(vm.environment.scopes[scope].variables, offset);
-  stack_push(&vm.stack, variable->value);
+  const auto symbol =
+      symbols_get_at(vm.environment.scopes[scope].symbols, offset);
+  stack_push(&vm.stack, symbol->value);
 }
 
 void vm_runtime_error(const char *format, ...) {

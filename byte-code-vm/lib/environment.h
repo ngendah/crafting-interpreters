@@ -2,14 +2,14 @@
 
 #include "common.h"
 #include "hash_table.h"
-#include "variables.h"
+#include "symbols.h"
 #include <stddef.h>
 
 constexpr auto MAX_SCOPE_SIZE = 256u;
 
 typedef struct {
   hash_table_t *hash_table;
-  variables_t *variables;
+  symbols_t *symbols;
 } scope_t;
 
 void scope_init(scope_t *environment);

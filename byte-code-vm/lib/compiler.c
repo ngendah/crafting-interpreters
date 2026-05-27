@@ -9,7 +9,6 @@
 #include "environment.h"
 #include "scanner.h"
 #include "value.h"
-#include "variables.h"
 
 #define LO_BYTE(x) ((x >> 8) & 0xff)
 #define HI_BYTE(x) (x & 0xff)
@@ -253,13 +252,13 @@ void compiler_declaration() {
 
 void compiler_declaration_variable() {
   compiler_consume(TOKEN_IDENTIFIER, _("Expect variable name."));
-  if (variables_exist(parser.environment->scopes[parser.scope].variables,
-                      parser.previous.lexeme)) {
+  if (symbols_exist(parser.environment->scopes[parser.scope].symbols,
+                    parser.previous.lexeme)) {
     compiler_error(_("Variable already exists in the current scope."));
   }
   const auto offset =
-      variables_add(parser.environment->scopes[parser.scope].variables,
-                    parser.previous.lexeme, VAR_HIDDEN);
+      symbols_add(parser.environment->scopes[parser.scope].symbols,
+                  parser.previous.lexeme, SYMBOL_HIDDEN);
   compiler_emit_half_dword(OP_VARIABLE_DEFINE, parser.scope, offset);
   if (compiler_match(TOKEN_EQUAL)) {
     compiler_expression();
@@ -267,8 +266,8 @@ void compiler_declaration_variable() {
     compiler_emit_byte(OP_NIL);
   }
   compiler_emit_half_dword(OP_VARIABLE_SET, parser.scope, offset);
-  variables_variable_set_visible(
-      parser.environment->scopes[parser.scope].variables, offset);
+  symbols_symbol_set_visible(parser.environment->scopes[parser.scope].symbols,
+                             offset);
   compiler_consume(TOKEN_SEMICOLON,
                    _("Expect ';' after variable declaration."));
 }
@@ -522,7 +521,7 @@ variable_location_t compiler_variable_search(int startAt,
   auto it = startAt;
   do {
     auto scope = environment->scopes[it];
-    auto offset = variables_get_offset(scope.variables, lexeme, VAR_VISIBLE);
+    auto offset = symbols_get_offset(scope.symbols, lexeme, SYMBOL_VISIBLE);
     if (offset > -1) {
       return (variable_location_t){.scope = it, .offset = offset};
     }
@@ -539,8 +538,8 @@ void compiler_variable() {
     compiler_expression();
     compiler_emit_half_dword(OP_VARIABLE_SET, variable_location.scope,
                              variable_location.offset);
-    variables_variable_set_visible(
-        parser.environment->scopes[variable_location.scope].variables,
+    symbols_symbol_set_visible(
+        parser.environment->scopes[variable_location.scope].symbols,
         variable_location.offset);
   } else {
     compiler_emit_half_dword(OP_VARIABLE_GET, variable_location.scope,

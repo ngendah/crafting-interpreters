@@ -6,13 +6,13 @@
 
 void scope_init(scope_t *scope) {
   scope->hash_table = new(sizeof(hash_table_t));
-  scope->variables = new(sizeof(variables_t));
+  scope->symbols = new(sizeof(symbols_t));
   hash_table_init(scope->hash_table, value_free);
-  variables_init(scope->variables, scope->hash_table);
+  symbols_init(scope->symbols, scope->hash_table);
 }
 
 void scope_free(scope_t *scope) {
-  variables_free(scope->variables);
+  symbols_free(scope->symbols);
   hash_table_free(scope->hash_table);
 }
 

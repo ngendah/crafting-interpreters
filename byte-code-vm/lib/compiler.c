@@ -88,6 +88,7 @@ void compiler_declaration_variable();
 void compiler_statement();
 void compiler_statement_if();
 void compiler_statement_while();
+void compiler_statement_for();
 void compiler_statement_print();
 void compiler_statement_expression();
 void compiler_expression();
@@ -279,6 +280,8 @@ void compiler_statement() {
     compiler_statement_if();
   } else if (compiler_match(TOKEN_WHILE)) {
     compiler_statement_while();
+  } else if (compiler_match(TOKEN_FOR)) {
+    compiler_statement_for();
   } else {
     compiler_statement_expression();
   }
@@ -328,6 +331,47 @@ void compiler_statement_while() {
   compiler_emit_loop(loop_start_at);
   compiler_patch_jump(jmp_code_at);
   compiler_emit_byte(OP_POP);
+}
+
+void compiler_statement_for() {
+  compiler_scope_begin();
+  compiler_consume(TOKEN_LEFT_PAREN, _("Expect '(' after 'for'."));
+  if (compiler_match(TOKEN_SEMICOLON)) {
+    // NOTE: No initializer
+  } else if (compiler_match(TOKEN_VAR)) {
+    compiler_declaration_variable();
+  } else {
+    compiler_statement_expression();
+  }
+  auto loop_start_at = compiler_instruction_pointer();
+  uint16_t jmp_code_at = UINT16_MAX;
+  if (!compiler_check(TOKEN_SEMICOLON)) {
+    compiler_expression();
+    compiler_consume(TOKEN_SEMICOLON, _("Expect ';' after loop condition."));
+    jmp_code_at = compiler_emit_jump_word(OP_JUMP_IF_FALSE);
+    compiler_emit_byte(OP_POP);
+  } else {
+    compiler_consume(TOKEN_SEMICOLON, _("Expect ';' after loop condition."));
+  }
+  if (!compiler_check(TOKEN_RIGHT_PAREN)) {
+    const auto jmp_at = compiler_emit_jump_word(OP_JUMP);
+    const auto increment_at = compiler_instruction_pointer();
+    compiler_expression();
+    compiler_consume(TOKEN_RIGHT_PAREN, _("Expect ')' after 'for' clause."));
+    compiler_emit_byte(OP_POP);
+    compiler_emit_loop(loop_start_at);
+    loop_start_at = increment_at;
+    compiler_patch_jump(jmp_at);
+  } else {
+    compiler_consume(TOKEN_RIGHT_PAREN, _("Expect ')' after 'for' clause."));
+  }
+  compiler_block();
+  compiler_emit_loop(loop_start_at);
+  if (jmp_code_at != UINT16_MAX) {
+    compiler_patch_jump(jmp_code_at);
+    compiler_emit_byte(OP_POP);
+  }
+  compiler_scope_end();
 }
 
 void compiler_statement_expression() {

@@ -66,7 +66,9 @@ bool value_can_add(const value_t a, const value_t b) {
 
 vm_result_t vm_execute() {
 
+#ifdef DEBUG_ENABLED
   printf("--- vm execute ---\n");
+#endif
 
 #define CHECK_BINARY_OPERANDS                                                  \
   if (!value_is_number(stack_peek_at(&vm.stack, 0)) ||                         \
@@ -169,7 +171,7 @@ vm_result_t vm_execute() {
       vm_print();
     } break;
     case OP_POP: {
-      stack_pop(&vm.stack);
+      const auto value = stack_pop(&vm.stack);
     } break;
     default:
       break;
